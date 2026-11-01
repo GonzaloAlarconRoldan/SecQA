@@ -27,8 +27,11 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
       - run: pip install -e ".[dev]"
-      - run: ruff check src tests
-      - run: mypy src
+      # Lint and types once, on the primary version (typeshed differs across Pythons); tests on all.
+      - if: matrix.python == '3.12'
+        run: ruff check src tests
+      - if: matrix.python == '3.12'
+        run: mypy src
       - run: pytest --cov=secqa --cov-report=term-missing
 
   frontend:
