@@ -41,6 +41,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+      - name: Release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          owner=$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" {on=1; next}
+            on && /^## \[/ {exit}
+            on {print}' CHANGELOG.md > notes.md
+          {
+            echo
+            echo "**Docker:** \`docker pull ghcr.io/${owner}/secqa-hub:${version}\`"
+            echo "**Install:** \`pip install \"secqa[hub] @ git+https://github.com/${GITHUB_REPOSITORY}@${GITHUB_REF_NAME}\"\`"
+          } >> notes.md
+          test -s notes.md
+      - run: gh release create "$GITHUB_REF_NAME" --title "SecQA $GITHUB_REF_NAME" --notes-file notes.md --verify-tag --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
