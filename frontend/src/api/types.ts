@@ -122,6 +122,7 @@ export interface Finding {
   review_comment: string | null;
   created_at: string;
   first_seen_run_id: number | null;
+  attachment_count: number;
 }
 
 export interface IngestResult {
@@ -179,13 +180,26 @@ export interface DefectEvent {
   at: string;
 }
 
+export type AttachmentKind = "screenshot" | "http" | "file";
+
 export interface Attachment {
   id: number;
   filename: string;
   content_type: string;
   size: number;
+  kind: AttachmentKind;
+  caption: string | null;
+  created_by: string | null;
+  finding_id: number | null;
+  defect_id: number | null;
   created_at: string;
   url: string;
+}
+
+export interface AttachmentUpload {
+  file: File;
+  caption?: string;
+  kind?: AttachmentKind;
 }
 
 export interface DefectDetail extends Defect {

@@ -39,7 +39,9 @@ def ingest_findings(db: Session, run: Run, items: Sequence[FindingCreate | dict[
                     actor: str) -> IngestResult:
     result = IngestResult(created=0)
     seen_in_batch: set[str] = set()
-    existing_in_run = set(db.scalars(select(Finding.fingerprint).where(Finding.run_id == run.id)))
+    existing_in_run = dict(db.execute(
+        select(Finding.fingerprint, Finding.id).where(Finding.run_id == run.id)).all())
+    batch_ids: dict[str, Finding] = {}
 
     for item in items:
         data = item.model_dump() if isinstance(item, FindingCreate) else FindingCreate(**item).model_dump()
@@ -48,6 +50,7 @@ def ingest_findings(db: Session, run: Run, items: Sequence[FindingCreate | dict[
         fp = fp[:64]
         if fp in seen_in_batch or fp in existing_in_run:
             result.skipped += 1
+            result.ids.append(existing_in_run.get(fp) or (batch_ids[fp].id if fp in batch_ids else None))
             continue
         seen_in_batch.add(fp)
 
@@ -75,6 +78,9 @@ def ingest_findings(db: Session, run: Run, items: Sequence[FindingCreate | dict[
                     reopen(db, defect, "system", f"regression: reappeared in run #{run.id}")
 
         db.add(finding)
+        db.flush()
+        batch_ids[fp] = finding
+        result.ids.append(finding.id)
         result.created += 1
 
     db.add(AuditLog(project_id=run.project_id, run_id=run.id, actor=actor,

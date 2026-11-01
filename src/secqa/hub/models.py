@@ -353,6 +353,10 @@ class Attachment(Base):
     content_type: Mapped[str] = mapped_column(String(100))
     size: Mapped[int]
     storage_path: Mapped[str] = mapped_column(String(500))
+    # screenshot | http (request/response capture) | file
+    kind: Mapped[str] = mapped_column(String(16), default="file", server_default="file")
+    caption: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 

@@ -1,7 +1,16 @@
-import { Bug, CheckCircle2, Search, ShieldOff, ShieldQuestion } from "lucide-react";
+import { Bug, Camera, CheckCircle2, Search, ShieldOff, ShieldQuestion } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { useBulkTriage, useFindings, useProjects, usePromoteFindings, useTriage } from "../api/hooks";
+import {
+  useBulkTriage,
+  useFindingAttachments,
+  useFindings,
+  useProjects,
+  usePromoteFindings,
+  useTriage,
+  useUploadFindingAttachment,
+} from "../api/hooks";
+import { EvidenceGallery } from "./EvidenceGallery";
 import { SEVERITIES, TRIAGE_STATUSES, type Finding, type Severity, type TriageStatus } from "../api/types";
 import { fmtDate } from "../lib/format";
 import { usePrefs } from "../lib/prefs";
@@ -60,6 +69,9 @@ function FindingDrawer({ finding, onClose }: { finding: Finding | null; onClose:
   const toast = useToast();
   const triage = useTriage();
   const [comment, setComment] = useState("");
+  // fetched only while the drawer is open (the drawer unmounts when closed)
+  const evidence = useFindingAttachments(finding?.id ?? null);
+  const upload = useUploadFindingAttachment(finding?.id ?? 0);
 
   if (!finding) return null;
   const act = (status: TriageStatus) =>
@@ -159,6 +171,17 @@ function FindingDrawer({ finding, onClose }: { finding: Finding | null; onClose:
       <PlainText text={finding.description} />
       <h3 className="label mt-5">{t("fd.evidence")}</h3>
       <PlainText text={finding.evidence} mono />
+      <h3 className="label mt-5">
+        {t("ev.title")}
+        {evidence.data && evidence.data.length > 0 ? ` (${evidence.data.length})` : ""}
+      </h3>
+      <EvidenceGallery
+        compact
+        items={evidence.data ?? []}
+        loading={evidence.isLoading}
+        uploading={upload.isPending}
+        onUpload={(u) => upload.mutateAsync(u)}
+      />
       <h3 className="label mt-5">{t("fd.remediation")}</h3>
       <PlainText text={finding.remediation} />
     </Drawer>
@@ -349,6 +372,12 @@ export function FindingsExplorer({ runId, initial }: { runId?: number; initial?:
                     </button>
                     <div className="muted flex gap-2 text-xs">
                       <span className="font-mono">{f.category}</span>
+                      {f.attachment_count > 0 && (
+                        <span className="inline-flex items-center gap-0.5" title={t("ev.count").replace("{n}", String(f.attachment_count))}>
+                          <Camera className="h-3.5 w-3.5" aria-hidden />
+                          {f.attachment_count}
+                        </span>
+                      )}
                       {f.first_seen_run_id === f.run_id && (
                         <span className="pill bg-sky-100 py-0 text-sky-800 dark:bg-sky-500/15 dark:text-sky-300">{t("fd.newBadge")}</span>
                       )}

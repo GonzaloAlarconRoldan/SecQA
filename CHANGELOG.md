@@ -5,6 +5,12 @@ All notable changes to this project are documented here. Format based on [Keep a
 ## [2.0.0] - 2026-11-01
 
 ### Added
+- **Visual evidence**:
+  - `secqa capture` (Playwright screenshot after a scope check, with highlight, auto-masking of emails, JWTs, hashes, cards and keys, a URL/time/run banner, and form fill + submit for login-bypass proofs),
+  - `secqa attach`, and `finding add --screenshot`,
+  - finding/defect attachments with captions and kinds; evidence follows a finding when it is promoted,
+  - gallery with lightbox and paste-to-upload in the UI, and screenshots embedded in the HTML/PDF report.
+- `examples/vuln-lab`: a tiny deliberately vulnerable app (SQLi, IDOR, data exposure, XSS) to try SecQA without Docker.
 - `secqa doctor` (detect / install the external scanners via brew, winget, scoop, pipx or go — always asks first) and the `secqa-setup` skill that prepares tools, Hub, project and scope.
 - **SecQA Hub**: multi-project FastAPI + React web app with:
   - overview KPIs (open defects, SLA breaches, MTTR, pass rate),

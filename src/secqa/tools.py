@@ -6,9 +6,11 @@ Installation always goes through the platform's package manager and is never sil
 """
 from __future__ import annotations
 
+import importlib.util
 import platform
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 
 
@@ -23,6 +25,9 @@ class Tool:
     # package manager → install command (argv). Tried in the order of PACKAGE_MANAGERS.
     install: dict[str, tuple[str, ...]] = field(default_factory=dict)
     docs: str = ""
+    # Python packages are detected by import, not by a binary on PATH, and installed with this interpreter's pip.
+    python_module: str | None = None
+    post_install: tuple[str, ...] | None = None
 
 
 TOOLS: tuple[Tool, ...] = (
@@ -47,6 +52,12 @@ TOOLS: tuple[Tool, ...] = (
                   "winget": ("winget", "install", "k6", "--source", "winget"),
                   "go": ("go", "install", "go.k6.io/k6@latest")},
          docs="https://grafana.com/docs/k6/latest/set-up/install-k6/"),
+    Tool("playwright", "playwright", "Screenshots as visual evidence (secqa capture)", "pentest-api / pentest-dast",
+         "core", python_module="playwright",
+         install={"pip": (sys.executable, "-m", "pip", "install", "playwright>=1.48")},
+         # Uses an installed Chrome when present; otherwise fetch Playwright's Chromium.
+         post_install=(sys.executable, "-m", "playwright", "install", "chromium"),
+         docs="https://playwright.dev/python/docs/intro"),
     Tool("trivy", "trivy", "Dependencies, Dockerfiles and IaC misconfiguration", "pentest-sca", "optional",
          install={"brew": ("brew", "install", "trivy"),
                   "scoop": ("scoop", "install", "trivy")},
@@ -105,19 +116,47 @@ def _version(binary: str, args: tuple[str, ...]) -> str | None:
     return text[0][:80] if text else None
 
 
+def _module_version(module: str) -> str | None:
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version(module)
+    except PackageNotFoundError:
+        return None
+
+
+def needs_browser_download() -> bool:
+    """Playwright can drive an installed Chrome; only download Chromium when there is none."""
+    candidates = ("google-chrome", "google-chrome-stable", "chrome", "chromium", "chromium-browser")
+    mac = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    win = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+    from pathlib import Path
+
+    return not (any(shutil.which(c) for c in candidates) or Path(mac).exists() or Path(win).exists())
+
+
 def check_tools(tools: tuple[Tool, ...] = TOOLS) -> list[ToolStatus]:
     managers = available_managers()
     statuses = []
     for t in tools:
-        path = shutil.which(t.binary)
-        statuses.append(ToolStatus(
-            tool=t,
-            path=path,
-            version=_version(path, t.version_args) if path else None,
-            install_cmd=None if path else install_command(t, managers),
-        ))
+        if t.python_module:
+            spec = importlib.util.find_spec(t.python_module)
+            path = spec.origin if spec else None
+            version = _module_version(t.python_module) if spec else None
+            cmd = None if spec else t.install.get("pip")
+        else:
+            path = shutil.which(t.binary)
+            version = _version(path, t.version_args) if path else None
+            cmd = None if path else install_command(t, managers)
+        statuses.append(ToolStatus(tool=t, path=path, version=version, install_cmd=cmd))
     return statuses
 
 
 def run_install(cmd: tuple[str, ...]) -> bool:
     return subprocess.run(list(cmd), check=False).returncode == 0  # noqa: S603
+
+
+def post_install_steps(tool: Tool) -> list[tuple[str, ...]]:
+    if tool.post_install and (tool.name != "playwright" or needs_browser_download()):
+        return [tool.post_install]
+    return []

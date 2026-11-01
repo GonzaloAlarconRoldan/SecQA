@@ -24,6 +24,7 @@ SecQA convierte a Claude Code en un tester de seguridad y performance para cualq
   - tendencias de performance,
   - matriz de cumplimiento OWASP / ISO 27001,
   - reportes HTML/PDF en ES/EN.
+- **Evidencia visual**: `secqa capture` toma capturas de cómo se ve el problema, por ejemplo un SQLi que entra como admin o un id cambiado en la URL que muestra datos ajenos. Resalta la prueba, enmascara solo emails, hashes y tokens, y añade una franja con URL, hora y run. Las capturas de antes y después pasan del hallazgo al defecto y al PDF.
 - **Memoria de decisiones**: los falsos positivos siguen suprimidos en próximas runs, y si un hallazgo de un defecto cerrado reaparece, el defecto se reabre solo.
 - **Performance con baseline**: perfiles k6 (smoke, load, stress, spike, soak) limitados por `scope.yml`. Métricas por endpoint, detección automática de regresiones y un defecto abierto cuando hay regresión. También importa resultados de JMeter.
 - **Formatos estándar**: SARIF, k6, JMeter JTL, JUnit → Hub → HTML/PDF, CSV, SARIF para GitHub.
