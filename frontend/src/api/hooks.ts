@@ -23,6 +23,7 @@ import type {
   TestCase,
   TestCaseInput,
   TestResult,
+  ToolReport,
   TriageStatus,
 } from "./types";
 
@@ -268,5 +269,46 @@ export function useDeleteTestCase() {
   return useMutation({
     mutationFn: (id: number) => api<void>(`/testcases/${id}`, { method: "DELETE" }),
     onSuccess: () => invalidate("testcases", "compliance"),
+  });
+}
+
+// ---- tool HTML reports (signed view links expire after 12 h, so keep them fresh) ----
+const REPORT_STALE_MS = 5 * 60_000;
+
+export const useRunReports = (runId: number) =>
+  useQuery({
+    queryKey: ["tool-reports", "run", runId],
+    queryFn: () => api<ToolReport[]>(`/runs/${runId}/reports`),
+    staleTime: REPORT_STALE_MS,
+    refetchInterval: 10 * 60_000,
+  });
+
+export const useToolReports = (query: { project?: string; tool?: string; limit?: number }) =>
+  useQuery({
+    queryKey: ["tool-reports", "list", query],
+    queryFn: () => api<ToolReport[]>("/tool-reports", { query }),
+    staleTime: REPORT_STALE_MS,
+    refetchInterval: 10 * 60_000,
+  });
+
+export function useUploadReport(runId: number) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ file, tool, title }: { file: File; tool: string; title?: string }) => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("tool", tool);
+      if (title) form.append("title", title);
+      return api<ToolReport>(`/runs/${runId}/reports`, { method: "POST", form });
+    },
+    onSuccess: () => invalidate("tool-reports"),
+  });
+}
+
+export function useDeleteReport() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (id: number) => api<void>(`/attachments/${id}`, { method: "DELETE" }),
+    onSuccess: () => invalidate("tool-reports"),
   });
 }

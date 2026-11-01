@@ -1,9 +1,10 @@
-import { Star } from "lucide-react";
+import { ExternalLink, Star } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { usePerfScenarios, usePerfTrend } from "../api/hooks";
 import { ChartBox, useChartTheme } from "../components/charts";
+import { ReportLink, toolMeta, useReportsByRun } from "../components/ToolReports";
 import { Card, cx, Empty, ErrorState, PageHeader, Pill, TableSkeleton } from "../components/ui";
 import { CHART } from "../lib/colors";
 import { fmtDate, fmtMs, fmtNum, fmtPct } from "../lib/format";
@@ -15,6 +16,7 @@ export default function PerformancePage() {
   const [project] = useProjectKey();
   const navigate = useNavigate();
   const ct = useChartTheme();
+  const reportsByRun = useReportsByRun(project);
   const scenarios = usePerfScenarios(project);
   const [scenarioSel, setScenario] = useState("");
   const [name, setName] = useState("__total__");
@@ -116,6 +118,7 @@ export default function PerformancePage() {
                     <th className="num">{t("rn.requests")}</th>
                     <th className="num">VUs</th>
                     <th>{t("c.started")}</th>
+                    <th>{t("tr.openShort")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -134,6 +137,14 @@ export default function PerformancePage() {
                       <td className="num">{fmtNum(p.requests)}</td>
                       <td className="num">{p.vus_max ?? "—"}</td>
                       <td className="muted whitespace-nowrap text-xs">{fmtDate(p.started_at, lang)}</td>
+                      <td className="whitespace-nowrap">
+                        {(reportsByRun.get(p.run_id) ?? []).map((r) => (
+                          <ReportLink key={r.id} report={r} className="mr-2 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                            {toolMeta(r.tool).label} <ExternalLink className="h-3 w-3" />
+                          </ReportLink>
+                        ))}
+                        {!reportsByRun.get(p.run_id)?.length && <span className="muted text-xs">—</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

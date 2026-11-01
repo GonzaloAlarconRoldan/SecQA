@@ -38,6 +38,7 @@ SecQA turns Claude Code into a security and performance tester for any repositor
 | 🔁 **Remembers decisions** | Findings are fingerprinted. False positives stay suppressed in later runs, and a defect reopens by itself if its finding comes back. |
 | ⏱️ **SLA & MTTR** | Due dates by severity, breach tracking, opened-vs-resolved flow, mean time to resolve. |
 | ⚡ **Performance with baselines** | k6 profiles (smoke, load, stress, spike, soak) capped by `scope.yml`. Results per endpoint, automatic regression detection, and a defect opened on regression. JMeter results can be imported too. |
+| 🔗 **Tool reports one click away** | The k6 web dashboard, the JMeter HTML dashboard, ZAP, osv-scanner, Trivy and Playwright reports are attached to their run. Open them from the run, Performance and Reports pages. They are served sandboxed behind expiring signed links. |
 | 🔌 **Standard formats** | Ingests SARIF (Semgrep, Gitleaks, Trivy, osv-scanner, Nuclei, CodeQL…), k6 JSON, JMeter JTL and JUnit. Exports an HTML/PDF report, CSV, and SARIF for GitHub code scanning. |
 | 🧾 **Traceability** | OWASP Top 10, OWASP API Top 10, CWE and ISO/IEC 27001:2022 Annex A on every finding, defect and test case. |
 | 🛡️ **Safe by default** | Allow-listed targets, a load cap and explicit authorization for active tests. Every active command lands in the audit log, secrets are masked, and reports contain only triaged data. |

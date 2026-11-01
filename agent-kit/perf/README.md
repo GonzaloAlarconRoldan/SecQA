@@ -13,9 +13,11 @@
 secqa scope check http://127.0.0.1:3000 --profile load --vus 20   # gate: exits 1 if not allowed
 secqa run start --kind performance --name "Load — release 1.4" --target http://127.0.0.1:3000
 mkdir -p secqa-out
+K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=secqa-out/k6-report.html \
 k6 run -e BASE_URL=http://127.0.0.1:3000 -e PROFILE=load -e VUS=20 -e MAX_VUS=50 \
        perf/scenarios/endpoints.js
 secqa ingest k6 secqa-out/k6-summary.json --scenario load
+secqa report upload secqa-out/k6-report.html --tool k6 --title "k6 dashboard — load"   # viewable from the Hub
 secqa run finish          # passed/failed from thresholds + baseline comparison
 ```
 
@@ -41,8 +43,9 @@ opened automatically (disable with `secqa ingest … --no-defects`).
 ```bash
 jmeter -n -t perf/jmeter/plan.jmx -l secqa-out/results.jtl \
   -Jhost=127.0.0.1 -Jport=3000 -Jusers=20 -Jrampup=30 -Jduration=120 \
-  -Jjmeter.save.saveservice.output_format=csv
+  -Jjmeter.save.saveservice.output_format=csv -e -o secqa-out/jmeter-report
 secqa ingest jtl secqa-out/results.jtl --scenario load
+secqa report upload secqa-out/jmeter-report --tool jmeter          # folder is zipped automatically
 ```
 
 Existing `.jmx` plans work as-is: only the CSV `.jtl` output is needed (columns `timeStamp`, `elapsed`, `label`, `success`).

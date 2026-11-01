@@ -447,3 +447,25 @@ export interface StackDetected {
   env_files?: string[];
   unparsed?: string[];
 }
+
+export const TOOL_REPORT_TOOLS = [
+  "k6", "jmeter", "zap", "osv-scanner", "trivy", "nuclei", "semgrep", "playwright", "lighthouse", "gatling", "locust",
+  "allure", "other",
+] as const;
+export type ReportTool = (typeof TOOL_REPORT_TOOLS)[number];
+
+/** A tool's own HTML report attached to a run. `view_url` is signed and expires (12 h): refetch, don't cache. */
+export interface ToolReport {
+  id: number;
+  run_id: number;
+  run_name: string | null;
+  run_kind: string;
+  project_key: string;
+  tool: ReportTool;
+  title: string | null;
+  filename: string;
+  size: number;
+  created_by: string | null;
+  created_at: string;
+  view_url: string;
+}

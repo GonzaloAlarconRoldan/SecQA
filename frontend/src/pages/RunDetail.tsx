@@ -5,6 +5,7 @@ import { useAudit, useRun, useRunCompare, useRunPerf, useRunResults, useUpdateRu
 import type { IntelSummary, Run, StackDetected } from "../api/types";
 import { FindingsExplorer } from "../components/FindingsExplorer";
 import { IntelTab, StackCard } from "../components/RunIntel";
+import { ToolReportsCard } from "../components/ToolReports";
 import { Card, cx, Empty, ErrorState, Pill, PlainText, SeverityBar, Skeleton, TableSkeleton, Tabs } from "../components/ui";
 import { fmtDate, fmtDuration, fmtMs, fmtNum, fmtPct } from "../lib/format";
 import { usePrefs } from "../lib/prefs";
@@ -299,6 +300,7 @@ export default function RunDetailPage() {
         )}
       </div>
 
+      <ToolReportsCard runId={run.id} runKind={run.kind} />
       {stack && <StackCard stack={stack} />}
 
       <Tabs<Tab>
