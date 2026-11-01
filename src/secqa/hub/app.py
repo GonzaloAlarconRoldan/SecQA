@@ -116,9 +116,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         def spa(full_path: str):
             if full_path.startswith("api/"):
                 raise HTTPException(404)
-            candidate = (STATIC_DIR / full_path).resolve()
-            if full_path and candidate.is_file() and STATIC_DIR in candidate.parents:
-                return FileResponse(candidate)
+            if full_path:
+                candidate = (STATIC_DIR / full_path).resolve()
+                # containment first: never touch the filesystem outside the bundled UI
+                if candidate.is_relative_to(STATIC_DIR) and candidate.is_file():
+                    return FileResponse(candidate)
             return FileResponse(STATIC_DIR / "index.html")
 
     return app
