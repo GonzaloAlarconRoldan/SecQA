@@ -1,7 +1,6 @@
-import { AlertTriangle, ArrowLeft, Download, Paperclip, Pencil, Send, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { AlertTriangle, ArrowLeft, Pencil, Send, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { authHeaders } from "../api/client";
 import {
   useAddComment,
   useDefect,
@@ -15,29 +14,16 @@ import {
   DEFECT_STATUSES,
   PRIORITIES,
   SEVERITIES,
-  type Attachment,
   type DefectDetail,
   type DefectStatus,
   type DefectUpdate,
 } from "../api/types";
+import { EvidenceGallery } from "../components/EvidenceGallery";
 import { Card, Empty, EnumSelect, ErrorState, Field, Modal, Pill, PlainText, SeverityBadge, Skeleton } from "../components/ui";
-import { fmtBytes, fmtDate, fmtRelative } from "../lib/format";
+import { fmtDate, fmtRelative } from "../lib/format";
 import { usePrefs } from "../lib/prefs";
 import { useProjectKey, withProject } from "../lib/project";
 import { useToast } from "../lib/toast";
-
-async function downloadAttachment(a: Attachment) {
-  const res = await fetch(a.url, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  const url = URL.createObjectURL(await res.blob());
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = a.filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 function DuplicateModal({ defect, onClose }: { defect: DefectDetail; onClose: () => void }) {
   const { t } = usePrefs();
@@ -157,7 +143,6 @@ export default function DefectDetailPage() {
   const del = useDeleteDefect();
   const addComment = useAddComment(id);
   const upload = useUploadAttachment(id);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [comment, setComment] = useState("");
   const [dupOpen, setDupOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -266,6 +251,10 @@ export default function DefectDetailPage() {
                 </tbody>
               </table>
             )}
+          </Card>
+
+          <Card title={`${t("ev.title")} (${d.attachments.length})`}>
+            <EvidenceGallery items={d.attachments} uploading={upload.isPending} onUpload={(u) => upload.mutateAsync(u)} />
           </Card>
 
           <Card title={`${t("df.comments")} (${d.comments.length})`}>
@@ -391,42 +380,6 @@ export default function DefectDetailPage() {
             )}
           </Card>
 
-          <Card
-            title={`${t("df.attachments")} (${d.attachments.length})`}
-            actions={
-              <>
-                <button className="btn btn-sm" disabled={upload.isPending} onClick={() => fileRef.current?.click()}>
-                  <Paperclip className="h-3.5 w-3.5" /> {t("df.upload")}
-                </button>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  hidden
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) upload.mutate(file, { onSuccess: () => toast.success(file.name), onError: toast.error });
-                    e.target.value = "";
-                  }}
-                />
-              </>
-            }
-          >
-            {d.attachments.length === 0 ? (
-              <p className="muted text-sm">{t("c.none")}</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {d.attachments.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate" title={a.filename}>{a.filename}</span>
-                    <span className="muted shrink-0 text-xs">{fmtBytes(a.size)}</span>
-                    <button className="btn btn-ghost btn-sm" aria-label={`Download ${a.filename}`} onClick={() => downloadAttachment(a).catch(toast.error)}>
-                      <Download className="h-3.5 w-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
           <p className="muted text-xs">{te(d.kind)} · #{d.id}</p>
         </aside>
       </div>

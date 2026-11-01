@@ -37,6 +37,14 @@
   .card p { margin:6px 0; white-space:pre-wrap; }
   code { font:12px ui-monospace, SFMono-Regular, Menlo, monospace; background:var(--soft); padding:1px 4px; border-radius:4px; }
   .breach { color:var(--critical); font-weight:600; }
+  .desc { margin:8px 0; } .desc pre { background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:8px 10px;
+          font:12px ui-monospace, Menlo, monospace; white-space:pre-wrap; word-break:break-word; }
+  .evidence { display:grid; grid-template-columns:repeat(auto-fill,minmax(440px,1fr)); gap:10px; margin-top:10px; }
+  .evidence figure { margin:0; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:var(--soft);
+                     page-break-inside:avoid; }
+  .evidence img { display:block; width:100%; height:auto; }
+  .evidence figcaption { font-size:11px; color:var(--muted); padding:6px 8px; }
+  tr.ev td { border-bottom:1px solid var(--line); padding-top:0; }
   .empty { color:var(--muted); font-style:italic; }
   footer { margin-top:48px; color:var(--muted); font-size:11px; border-top:1px solid var(--line); padding-top:12px;
            display:flex; justify-content:space-between; }
@@ -80,7 +88,13 @@
     {% if d.assignee %}<span>@{{ d.assignee }}</span>{% endif %}
     {% if d.due_at %}<span class="{{ 'breach' if d.sla_breached else '' }}">SLA {{ d.due_at.strftime('%Y-%m-%d') }}</span>{% endif %}
   </div>
-  {% if d.description %}<p>{{ d.description }}</p>{% endif %}
+  {% if d.description %}<div class="desc">{{ d.description | md }}</div>{% endif %}
+  {% set ev = defect_evidence.get(d.id, []) %}
+  {% if ev %}
+  <div class="evidence">
+    {% for img in ev %}<figure><img src="{{ img.src }}" alt="{{ img.caption }}"><figcaption>{{ t.evidence }}: {{ img.caption }}</figcaption></figure>{% endfor %}
+  </div>
+  {% endif %}
 </div>
 {% else %}<p class="empty">{{ t.none }}</p>{% endfor %}
 
@@ -97,6 +111,12 @@
     <td><code>{{ f.endpoint or ((f.file_path or '') ~ (':' ~ f.line_start if f.line_start else '')) }}</code></td>
     <td>{{ f.owasp_id or '' }} {{ f.cwe_id or '' }}</td>
   </tr>
+  {% set ev = finding_evidence.get(f.id, []) %}
+  {% if ev %}
+  <tr class="ev"><td></td><td colspan="4"><div class="evidence">
+    {% for img in ev %}<figure><img src="{{ img.src }}" alt="{{ img.caption }}"><figcaption>{{ img.caption }}</figcaption></figure>{% endfor %}
+  </div></td></tr>
+  {% endif %}
   {% endfor %}
   </tbody>
 </table>

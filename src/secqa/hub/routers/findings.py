@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, File, Form, Query, UploadFile, status
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from ..deps import DB, Actor, get_or_404, project_by_key
-from ..models import AuditLog, Defect, Finding, Severity, TriageStatus, utcnow
-from ..schemas import BulkTriage, FindingOut, FindingTriage, Page
+from ..deps import DB, Actor, AppSettings, get_or_404, project_by_key
+from ..models import Attachment, AuditLog, Defect, Finding, Severity, TriageStatus, utcnow
+from ..schemas import AttachmentOut, BulkTriage, FindingOut, FindingTriage, Page
+from ..services.attachments import save_upload
 
 router = APIRouter(tags=["findings"])
 
@@ -26,10 +27,17 @@ def _first_seen():
 
 
 def findings_out(db: Session, rows) -> list[FindingOut]:
+    rows = list(rows)
+    ids = [r[0].id for r in rows]
+    counts = dict(db.execute(
+        select(Attachment.finding_id, func.count()).where(Attachment.finding_id.in_(ids))
+        .group_by(Attachment.finding_id)
+    ).all()) if ids else {}
     out = []
     for finding, first_seen, defect_key in rows:
-        out.append(FindingOut.model_validate(finding).model_copy(
-            update={"first_seen_run_id": first_seen, "defect_key": defect_key}))
+        out.append(FindingOut.model_validate(finding).model_copy(update={
+            "first_seen_run_id": first_seen, "defect_key": defect_key,
+            "attachment_count": counts.get(finding.id, 0)}))
     return out
 
 
@@ -127,3 +135,24 @@ def bulk_triage(body: BulkTriage, db: DB, actor: Actor):
                         target=",".join(str(f.id) for f in findings)))
     db.commit()
     return {"updated": len(findings)}
+
+
+@router.get("/findings/{finding_id}/attachments", response_model=list[AttachmentOut])
+def list_finding_attachments(finding_id: int, db: DB):
+    get_or_404(db, Finding, finding_id)
+    rows = db.scalars(select(Attachment).where(Attachment.finding_id == finding_id)
+                      .order_by(Attachment.created_at, Attachment.id)).all()
+    return [AttachmentOut.model_validate(a).model_copy(update={"url": f"/api/attachments/{a.id}"}) for a in rows]
+
+
+@router.post("/findings/{finding_id}/attachments", response_model=AttachmentOut,
+             status_code=status.HTTP_201_CREATED)
+async def add_finding_attachment(finding_id: int, db: DB, actor: Actor, settings: AppSettings,
+                                 file: UploadFile = File(...), caption: str | None = Form(None),
+                                 kind: str | None = Form(None)):
+    """Evidence for a finding: screenshots (before/after), HTTP captures, logs."""
+    f = get_or_404(db, Finding, finding_id)
+    a = await save_upload(db, settings, file, project_id=f.project_id, actor=actor, caption=caption,
+                          kind=kind, finding_id=f.id, run_id=f.run_id, label=f"finding #{f.id}")
+    db.commit()
+    return AttachmentOut.model_validate(a).model_copy(update={"url": f"/api/attachments/{a.id}"})

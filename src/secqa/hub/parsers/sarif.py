@@ -5,6 +5,7 @@ SARIF export) and anything else that speaks SARIF.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Any
 
@@ -73,6 +74,24 @@ def _text(obj: dict[str, Any] | None) -> str | None:
     return obj.get("markdown") or obj.get("text")
 
 
+_FP_RE = re.compile(r"^[A-Za-z0-9:+/=_.-]{12,}$")
+
+
+def _tool_fingerprint(tool: str, rule_id: str | None, uri: str | None, result: dict[str, Any]) -> str | None:
+    """Stable id from the tool's own fingerprint, if it is a real one.
+
+    Some tools emit placeholders instead (Semgrep OSS without login writes "requires login" for every
+    result), which would collapse unrelated findings. Only hash-like values are trusted, and they are
+    always combined with tool, rule and file so they can't collide across rules.
+    """
+    for source in (result.get("partialFingerprints") or {}, result.get("fingerprints") or {}):
+        for value in source.values():
+            if isinstance(value, str) and _FP_RE.match(value):
+                raw = "|".join([tool, rule_id or "", uri or "", value])
+                return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:40]
+    return None
+
+
 def _clean_uri(uri: str | None) -> str | None:
     if not uri:
         return uri
@@ -111,7 +130,6 @@ def parse_sarif(doc: dict[str, Any], default_source: str | None = None) -> list[
             uri = _clean_uri(loc.get("artifactLocation", {}).get("uri"))
             message = _text(result.get("message")) or rule_id or "finding"
             title = _text(rule.get("shortDescription")) or message.splitlines()[0][:200]
-            fingerprints = result.get("partialFingerprints") or result.get("fingerprints") or {}
 
             endpoint = None
             if uri and uri.startswith(("http://", "https://")):
@@ -133,6 +151,6 @@ def parse_sarif(doc: dict[str, Any], default_source: str | None = None) -> list[
                 "endpoint": endpoint,
                 "evidence": _text(region.get("snippet")),
                 "remediation": _text(rule.get("help")),
-                "fingerprint": next(iter(fingerprints.values()), None),
+                "fingerprint": _tool_fingerprint(tool, rule_id, uri, result),
             })
     return findings

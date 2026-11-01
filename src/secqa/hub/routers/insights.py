@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 from collections import defaultdict
 from datetime import timedelta
 from importlib import resources
@@ -12,10 +13,11 @@ from typing import Literal
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse, Response
 from jinja2 import Environment, PackageLoader, select_autoescape
+from markupsafe import Markup, escape
 from sqlalchemy import func, select
 
 from ... import __version__
-from ..deps import DB, get_or_404, project_by_key
+from ..deps import DB, AppSettings, get_or_404, project_by_key
 from ..models import (
     OPEN_DEFECT_STATUSES,
     Defect,
@@ -32,14 +34,43 @@ from ..models import (
     utcnow,
 )
 from ..schemas import DefectOut, FindingOut, RunOut
+from ..services.attachments import data_uri, evidence_query, linked_finding_ids
 from ..services.defects import is_sla_breached
 from .runs import run_out
 
 router = APIRouter(tags=["insights"])
 
+MAX_REPORT_IMAGES = 6
 ACTIVE_TRIAGE = [TriageStatus.new, TriageStatus.confirmed]
 SEVERITIES = [s.value for s in Severity]
 _jinja = Environment(loader=PackageLoader("secqa.hub", "templates"), autoescape=select_autoescape(["html"]))
+_FENCE_RE = re.compile(r"```[^\n]*\n(.*?)```", re.DOTALL)
+_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+_CODE_RE = re.compile(r"`([^`\n]+)`")
+
+
+def mini_markdown(text: str | None) -> Markup:
+    """Escape first, then allow only **bold**, `code` and ``` blocks — tool output can't inject markup."""
+    if not text:
+        return Markup("")
+    parts = []
+    last = 0
+    for m in _FENCE_RE.finditer(text):
+        parts.append(_inline(text[last:m.start()]))
+        parts.append(Markup("<pre>{}</pre>").format(m.group(1).rstrip("\n")))
+        last = m.end()
+    parts.append(_inline(text[last:]))
+    return Markup("").join(parts)
+
+
+def _inline(chunk: str) -> Markup:
+    out = str(escape(chunk))
+    out = _CODE_RE.sub(r"<code>\1</code>", out)
+    out = _BOLD_RE.sub(r"<b>\1</b>", out)
+    return Markup(out.strip("\n").replace("\n", "<br>"))  # noqa: S704 - built from escape() output
+
+
+_jinja.filters["md"] = mini_markdown
 
 
 def _pid(db, project: str | None) -> int | None:
@@ -221,20 +252,21 @@ REPORT_TEXT = {
            "runs": "Runs included", "generated": "Generated", "severity": "Severity", "status": "Status",
            "location": "Location", "remediation": "Remediation", "none": "Nothing to report.",
            "open": "Open defects", "breached": "SLA breached", "confidential": "Confidential",
-           "p95": "p95 latency", "errors": "Error rate", "rps": "Throughput"},
+           "p95": "p95 latency", "errors": "Error rate", "rps": "Throughput", "evidence": "Evidence"},
     "es": {"title": "Reporte de QA de Seguridad y Performance", "summary": "Resumen ejecutivo",
            "defects": "Defectos registrados", "findings": "Hallazgos confirmados", "perf": "Performance",
            "runs": "Ejecuciones incluidas", "generated": "Generado", "severity": "Severidad",
            "status": "Estado", "location": "Ubicación", "remediation": "Remediación",
            "none": "Nada que reportar.", "open": "Defectos abiertos", "breached": "SLA vencido",
            "confidential": "Confidencial", "p95": "Latencia p95", "errors": "Tasa de error",
-           "rps": "Throughput"},
+           "rps": "Throughput", "evidence": "Evidencia"},
 }
 
 
 @router.get("/reports/html", response_class=HTMLResponse)
 def report_html(
     db: DB,
+    settings: AppSettings,
     project: str,
     run_id: int | None = None,
     severity: list[Severity] | None = Query(None),
@@ -269,6 +301,21 @@ def report_html(
     perf_runs = [r for r in runs if r.kind is RunKind.performance]
     perf = {r.id: [m for m in r.perf_metrics if m.name == "__total__"] for r in perf_runs}
 
+    # Screenshots are embedded as data URIs so the HTML/PDF is self-contained and needs no token.
+    def images(rows) -> list[dict]:
+        out = []
+        for a in rows:
+            uri = data_uri(settings, a)
+            if uri:
+                out.append({"src": uri, "caption": a.caption or a.filename})
+            if len(out) >= MAX_REPORT_IMAGES:
+                break
+        return out
+
+    defect_evidence = {d.id: images(db.scalars(evidence_query(d.id, linked_finding_ids(db, d.id))))
+                       for d in defects}
+    finding_evidence = {f.id: images(db.scalars(evidence_query(None, [f.id]))) for f in findings}
+
     sev_counts = {s: 0 for s in SEVERITIES}
     for d in defects:
         sev_counts[d.severity.value] += 1
@@ -282,6 +329,7 @@ def report_html(
         runs=[RunOut.model_validate(r).model_copy(update={"project_key": proj.key}) for r in runs],
         perf_runs=perf_runs, perf=perf, sev_counts=sev_counts, run_id=run_id,
         breached=sum(1 for d in defects if is_sla_breached(d)),
+        defect_evidence=defect_evidence, finding_evidence=finding_evidence,
     )
     return HTMLResponse(html)
 

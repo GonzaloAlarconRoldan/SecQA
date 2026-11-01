@@ -333,7 +333,36 @@ export function SeverityBar({ counts }: { counts: Partial<Record<Severity, numbe
 }
 
 /** Tool-provided text: always rendered as plain text, never HTML. */
+// Minimal, injection-proof markdown: only ``` blocks, `code` and **bold**, built as React nodes
+// (never innerHTML), so tool-provided text can't smuggle markup into the page.
+function inlineMd(chunk: string, keyBase: string): ReactNode[] {
+  return chunk.split(/(`[^`\n]+`|\*\*[^*]+\*\*)/g).map((part, i) => {
+    const key = `${keyBase}-${i}`;
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+      return <code key={key} className="rounded bg-slate-100 px-1 font-mono text-[0.85em] dark:bg-slate-800">{part.slice(1, -1)}</code>;
+    }
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
+export function MiniMarkdown({ text }: { text: string }) {
+  const nodes: ReactNode[] = [];
+  const fence = /```[^\n]*\n([\s\S]*?)```/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = fence.exec(text))) {
+    nodes.push(...inlineMd(text.slice(last, m.index).replace(/^\n+|\n+$/g, ""), `t${last}`));
+    nodes.push(<pre key={`f${m.index}`} className="pre my-2">{m[1].replace(/\n$/, "")}</pre>);
+    last = m.index + m[0].length;
+  }
+  nodes.push(...inlineMd(text.slice(last).replace(/^\n+/, ""), `t${last}`));
+  return <div className="whitespace-pre-wrap break-words text-sm">{nodes}</div>;
+}
+
 export function PlainText({ text, mono }: { text: string | null | undefined; mono?: boolean }) {
   if (!text) return <span className="muted">—</span>;
-  return mono ? <pre className="pre">{text}</pre> : <p className="whitespace-pre-wrap break-words text-sm">{text}</p>;
+  return mono ? <pre className="pre">{text}</pre> : <MiniMarkdown text={text} />;
 }

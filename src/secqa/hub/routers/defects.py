@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-import mimetypes
-import re
-import uuid
-
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
@@ -37,14 +33,13 @@ from ..schemas import (
     FindingOut,
     Page,
 )
+from ..services.attachments import evidence_query, save_upload
 from ..services.defects import create_defect, is_sla_breached, update_defect
 
 router = APIRouter(tags=["defects"])
 
-MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 SEVERITY_RANK = {s: i for i, s in enumerate(Severity)}
 SEVERITY_ORDER = case({s.value: i for i, s in enumerate(Severity)}, value=Defect.severity, else_=99)
-_SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 # Types a browser may render inline. Everything else is forced to download.
 INLINE_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp", "text/plain", "application/pdf"}
 
@@ -176,7 +171,7 @@ def get_defect(defect_id: int, db: DB):
     d = get_or_404(db, Defect, defect_id)
     base = defect_out(db, d)
     findings = db.scalars(select(Finding).where(Finding.defect_id == d.id).order_by(Finding.id)).all()
-    attachments = db.scalars(select(Attachment).where(Attachment.defect_id == d.id)).all()
+    attachments = db.scalars(evidence_query(d.id, [f.id for f in findings])).all()
     return DefectDetail(
         **base.model_dump(),
         comments=[CommentOut.model_validate(c) for c in d.comments],
@@ -223,24 +218,25 @@ def add_comment(defect_id: int, body: CommentCreate, db: DB, actor: Actor):
 @router.post("/defects/{defect_id}/attachments", response_model=AttachmentOut,
              status_code=status.HTTP_201_CREATED)
 async def add_attachment(defect_id: int, db: DB, actor: Actor, settings: AppSettings,
-                         file: UploadFile = File(...)):
+                         file: UploadFile = File(...), caption: str | None = Form(None),
+                         kind: str | None = Form(None)):
     d = get_or_404(db, Defect, defect_id)
-    data = await file.read(MAX_ATTACHMENT_BYTES + 1)
-    if len(data) > MAX_ATTACHMENT_BYTES:
-        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "attachment exceeds 20 MB")
-    original = (file.filename or "file").rsplit("/", 1)[-1]
-    safe = _SAFE_NAME.sub("_", original)[:120] or "file"
-    rel = f"{d.project_id}/{uuid.uuid4().hex}_{safe}"
-    path = settings.attachments_dir / rel
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
-    content_type = file.content_type or mimetypes.guess_type(safe)[0] or "application/octet-stream"
-    a = Attachment(project_id=d.project_id, defect_id=d.id, filename=original[:300],
-                   content_type=content_type[:100], size=len(data), storage_path=rel)
-    db.add(a)
-    db.add(AuditLog(project_id=d.project_id, actor=actor, action=f"attached '{original}' to {d.key}"))
+    a = await save_upload(db, settings, file, project_id=d.project_id, actor=actor, caption=caption,
+                          kind=kind, defect_id=d.id, label=d.key)
     db.commit()
     return attachment_out(a)
+
+
+@router.delete("/attachments/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_attachment(attachment_id: int, db: DB, actor: Actor, settings: AppSettings):
+    a = get_or_404(db, Attachment, attachment_id)
+    root = settings.attachments_dir.resolve()
+    path = (root / a.storage_path).resolve()
+    if root in path.parents and path.is_file():
+        path.unlink()
+    db.add(AuditLog(project_id=a.project_id, actor=actor, action=f"deleted attachment '{a.filename}'"))
+    db.delete(a)
+    db.commit()
 
 
 @router.get("/attachments/{attachment_id}")

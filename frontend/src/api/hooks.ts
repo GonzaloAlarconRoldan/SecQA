@@ -1,6 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Query } from "./client";
+import { api, authHeaders, type Query } from "./client";
 import type {
+  Attachment,
+  AttachmentUpload,
   AuditEntry,
   Comparison,
   Compliance,
@@ -190,15 +192,63 @@ export function useAddComment(defectId: number) {
   });
 }
 
+function attachmentForm({ file, caption, kind }: AttachmentUpload): FormData {
+  const form = new FormData();
+  form.append("file", file);
+  if (caption?.trim()) form.append("caption", caption.trim());
+  if (kind) form.append("kind", kind);
+  return form;
+}
+
 export function useUploadAttachment(defectId: number) {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (file: File) => {
-      const form = new FormData();
-      form.append("file", file);
-      return api(`/defects/${defectId}/attachments`, { method: "POST", form });
-    },
+    mutationFn: (upload: AttachmentUpload) =>
+      api<Attachment>(`/defects/${defectId}/attachments`, { method: "POST", form: attachmentForm(upload) }),
     onSuccess: () => invalidate("defect"),
+  });
+}
+
+export const useFindingAttachments = (findingId: number | null) =>
+  useQuery({
+    queryKey: ["finding-attachments", findingId],
+    queryFn: () => api<Attachment[]>(`/findings/${findingId}/attachments`),
+    enabled: findingId !== null,
+  });
+
+export function useUploadFindingAttachment(findingId: number) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (upload: AttachmentUpload) =>
+      api<Attachment>(`/findings/${findingId}/attachments`, { method: "POST", form: attachmentForm(upload) }),
+    onSuccess: () => invalidate("finding-attachments", "findings", "defect"),
+  });
+}
+
+export function useDeleteAttachment() {
+  const qc = useQueryClient();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (id: number) => api<void>(`/attachments/${id}`, { method: "DELETE" }),
+    onSuccess: (_d, id) => {
+      qc.removeQueries({ queryKey: ["attachment-blob", id] });
+      return invalidate("finding-attachments", "findings", "defect");
+    },
+  });
+}
+
+/** Attachments need the auth header, so images are fetched as blobs and shown via object URLs. */
+export function useAttachmentBlob(a: Attachment | null, enabled = true) {
+  return useQuery({
+    queryKey: ["attachment-blob", a?.id],
+    queryFn: async () => {
+      const res = await fetch(a!.url, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.blob();
+    },
+    enabled: !!a && enabled,
+    staleTime: Infinity,
+    gcTime: 5 * 60_000,
   });
 }
 

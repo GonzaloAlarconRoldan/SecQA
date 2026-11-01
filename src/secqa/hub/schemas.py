@@ -196,10 +196,13 @@ class FindingOut(ORM):
     review_comment: str | None
     created_at: UTCDateTime
     first_seen_run_id: int | None = None
+    attachment_count: int = 0
 
 
 class IngestResult(BaseModel):
     created: int
+    # finding ids aligned with the submitted items (an in-run duplicate maps to the existing finding)
+    ids: list[int | None] = []
     suppressed: int = 0
     linked_to_defects: int = 0
     skipped: int = 0
@@ -279,6 +282,11 @@ class AttachmentOut(ORM):
     filename: str
     content_type: str
     size: int
+    kind: str
+    caption: str | None
+    created_by: str | None
+    finding_id: int | None
+    defect_id: int | None
     created_at: UTCDateTime
     url: str = ""
 

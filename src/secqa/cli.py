@@ -313,8 +313,97 @@ def cmd_finding_add(args) -> None:
             "remediation": args.remediation, "cwe_id": args.cwe,
         }.items() if v is not None}]
     res = _call(args, "POST", f"/api/runs/{_run_id(args)}/findings", json=items)
+    ids = [i for i in res.get("ids", []) if i]
     _out(args, res, f"{res['created']} created, {res['suppressed']} auto-suppressed, "
-                    f"{res['linked_to_defects']} linked to existing defects, {res['skipped']} duplicates")
+                    f"{res['linked_to_defects']} linked to existing defects, {res['skipped']} duplicates"
+                    + (f"  → finding id(s): {', '.join(map(str, ids))}" if ids else ""))
+    if getattr(args, "screenshot", None):
+        if len(ids) != 1:
+            raise CLIError("--screenshot needs exactly one finding (use `secqa attach --finding ID` for lists)")
+        for spec in args.screenshot:
+            path, caption = _split_caption(spec)
+            _upload_evidence(args, f"findings/{ids[0]}", path, caption, "screenshot")
+            print(f"[ok] evidence '{path.name}' attached to finding #{ids[0]}")
+
+
+def _upload_evidence(args, target: str, path: Path, caption: str | None, kind: str | None = None) -> dict:
+    if not path.is_file():
+        raise CLIError(f"{path} not found")
+    data = {k: v for k, v in {"caption": caption, "kind": kind}.items() if v}
+    return _call(args, "POST", f"/api/{target}/attachments", data=data,
+                 files={"file": (path.name, path.read_bytes())})
+
+
+def _split_caption(spec: str) -> tuple[Path, str | None]:
+    path, _, caption = spec.partition("::")
+    return Path(path), caption or None
+
+
+def cmd_attach(args) -> None:
+    target = f"findings/{args.finding}" if args.finding else f"defects/{args.defect}"
+    for spec in args.files:
+        path, caption = _split_caption(spec)
+        a = _upload_evidence(args, target, path, caption or args.caption, args.kind)
+        print(f"[ok] {a['kind']} '{a['filename']}' → {target.replace('s/', ' #')} (attachment {a['id']})")
+
+
+def _split_fill(spec: str) -> tuple[str, str]:
+    """'CSS=value' where the selector may itself contain '=' inside [...] or quotes."""
+    depth, quote = 0, ""
+    for i, ch in enumerate(spec):
+        if quote:
+            quote = "" if ch == quote else quote
+        elif ch in "'\"":
+            quote = ch
+        elif ch == "[":
+            depth += 1
+        elif ch == "]":
+            depth -= 1
+        elif ch == "=" and depth == 0 and i > 0:
+            return spec[:i], spec[i + 1:]
+    raise CLIError(f"--fill must look like 'CSS=value', got {spec!r}")
+
+
+def cmd_capture(args) -> None:
+    from .capture import CaptureError, CaptureOptions, capture
+
+    check_target(load_scope(args.scope), args.page_url)  # a screenshot is still traffic to the target
+    headers = {}
+    for h in args.header or []:
+        name, sep, value = h.partition(":")
+        if not sep:
+            raise CLIError(f"--header must look like 'Name: value', got {h!r}")
+        headers[name.strip()] = value.strip()
+    fills = [_split_fill(f) for f in args.fill or []]
+    run_label = None
+    with contextlib.suppress(CLIError):
+        run_label = f"run #{_run_id(args)}"
+    try:
+        w, h = (int(x) for x in args.viewport.lower().split("x"))
+    except ValueError as exc:
+        raise CLIError("--viewport must look like 1366x900") from exc
+    opts = CaptureOptions(
+        url=args.page_url, output=Path(args.output), highlight=args.highlight,
+        mask_selectors=args.mask or [], mask_patterns=args.mask_text or [],
+        mask_defaults=not args.no_mask_defaults, headers=headers,
+        storage_state=Path(args.storage_state) if args.storage_state else None,
+        wait_for=args.wait_for, full_page=args.full_page, viewport=(w, h),
+        fill=fills, click=args.click,
+        banner=None if args.no_banner else (" · ".join(filter(None, [run_label, args.caption])) or ""),
+    )
+    try:
+        res = capture(opts)
+    except CaptureError as exc:
+        raise CLIError(str(exc)) from exc
+    print(f"[ok] {res.output}  (HTTP {res.status}, highlighted {res.highlighted}, masked {res.masked} values)")
+    with contextlib.suppress(CLIError):
+        _call(args, "POST", f"/api/projects/{_project(args)}/audit",
+              json={"action": f"captured screenshot of {args.page_url}", "target": args.page_url,
+                    "run_id": int(run_label.split("#")[1]) if run_label else None})
+    if args.finding or args.defect:
+        target = f"findings/{args.finding}" if args.finding else f"defects/{args.defect}"
+        a = _upload_evidence(args, target, res.output, args.caption, "screenshot")
+        print(f"[ok] attached to {target.replace('s/', ' #')} (attachment {a['id']})")
 
 
 def cmd_results_add(args) -> None:
@@ -352,7 +441,7 @@ def cmd_scope_show(args) -> None:
 
 
 def cmd_doctor(args) -> None:
-    from .tools import TOOLS, available_managers, check_tools, run_install
+    from .tools import TOOLS, available_managers, check_tools, post_install_steps, run_install
 
     wanted = set(args.only.split(",")) if args.only else None
     tools = tuple(t for t in TOOLS if (wanted is None and (args.all or t.tier == "core"))
@@ -393,13 +482,15 @@ def cmd_doctor(args) -> None:
     if installable:
         print("\nWill run:")
         for s in installable:
-            print(f"  $ {' '.join(s.install_cmd or ())}")
+            for cmd in [s.install_cmd or (), *post_install_steps(s.tool)]:
+                print(f"  $ {' '.join(cmd)}")
         if not args.yes:
             if not sys.stdin.isatty():
                 raise CLIError("refusing to install without confirmation — re-run with --yes")
             if input("Proceed? [y/N] ").strip().lower() not in ("y", "yes"):
                 raise CLIError("installation cancelled")
-        failed = [s.tool.name for s in installable if not run_install(s.install_cmd or ())]
+        failed = [s.tool.name for s in installable
+                  if not all(run_install(c) for c in [s.install_cmd or (), *post_install_steps(s.tool)])]
         ok = check_tools(tuple(s.tool for s in installable))
         still_missing = [s.tool.name for s in ok if not s.installed]
         if "go" in managers and still_missing:
@@ -507,7 +598,44 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--evidence")
     s.add_argument("--remediation")
     s.add_argument("--cwe")
+    s.add_argument("--screenshot", action="append", metavar="FILE[::caption]",
+                   help="attach evidence (repeatable), e.g. --screenshot 'after.png::id=2 shows another user'")
     s.set_defaults(func=cmd_finding_add)
+
+    s = sub.add_parser("attach", help="attach evidence files to a finding or defect")
+    s.add_argument("files", nargs="+", metavar="FILE[::caption]")
+    grp = s.add_mutually_exclusive_group(required=True)
+    grp.add_argument("--finding", type=int)
+    grp.add_argument("--defect", type=int)
+    s.add_argument("--caption", help="caption for files without their own ::caption")
+    s.add_argument("--kind", choices=["screenshot", "http", "file"])
+    s.set_defaults(func=cmd_attach)
+
+    s = sub.add_parser("capture", help="screenshot a page as visual evidence (scope-checked)")
+    # dest must not be "url": that would shadow the global --url (the Hub address)
+    s.add_argument("page_url", metavar="URL")
+    s.add_argument("-o", "--output", required=True, help="PNG path, e.g. secqa-out/evidence/idor-after.png")
+    s.add_argument("--highlight", metavar="CSS", help="outline the element(s) that prove the issue")
+    s.add_argument("--mask", action="append", metavar="CSS", help="black out element(s) (repeatable)")
+    s.add_argument("--mask-text", action="append", metavar="REGEX", help="mask matching text (repeatable)")
+    s.add_argument("--no-mask-defaults", action="store_true",
+                   help="don't auto-mask emails, JWTs, hashes, card numbers and API keys")
+    s.add_argument("--header", action="append", metavar="'Name: value'", help="extra request header (repeatable)")
+    s.add_argument("--storage-state", help="Playwright storage state JSON (logged-in session)")
+    s.add_argument("--wait-for", metavar="CSS", help="wait for this element before capturing")
+    s.add_argument("--fill", action="append", metavar="CSS=value",
+                   help="type into a field before capturing (repeatable), e.g. \"#email=' OR 1=1--\"")
+    s.add_argument("--click", metavar="CSS", help="click this element (e.g. submit) and capture the resulting page")
+    s.add_argument("--full-page", action="store_true")
+    s.add_argument("--viewport", default="1280x720")
+    s.add_argument("--no-banner", action="store_true", help="omit the evidence banner (URL · time · run)")
+    s.add_argument("--caption", help="caption (also shown in the banner)")
+    s.add_argument("--scope", default="scope.yml")
+    s.add_argument("--run")
+    grp = s.add_mutually_exclusive_group()
+    grp.add_argument("--finding", type=int, help="attach the screenshot to this finding")
+    grp.add_argument("--defect", type=int, help="attach the screenshot to this defect")
+    s.set_defaults(func=cmd_capture)
 
     results = sub.add_parser("results", help="add test results").add_subparsers(dest="sub", required=True)
     s = results.add_parser("add")
@@ -555,7 +683,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         args.func(args)
-    except (CLIError, ScopeError) as exc:
+    except (CLIError, ScopeError, OSError) as exc:
         print(f"[secqa] error: {exc}", file=sys.stderr)
         return 1
     return 0

@@ -110,12 +110,14 @@ def test_doctor_reports_missing_tools_and_install_commands(monkeypatch, capsys):
 
     monkeypatch.setattr(tools.platform, "system", lambda: "Darwin")
     monkeypatch.setattr(tools.shutil, "which", lambda b: "/usr/bin/brew" if b == "brew" else None)
+    monkeypatch.setattr(tools.importlib.util, "find_spec", lambda name: None)
     assert cli.main(["--json", "doctor"]) == 0
     data = json.loads(capsys.readouterr().out)
     assert data["package_managers"] == ["brew"]
     by_name = {t["name"]: t for t in data["tools"]}
-    assert set(by_name) == {"semgrep", "gitleaks", "osv-scanner", "k6"}  # core only by default
+    assert set(by_name) == {"semgrep", "gitleaks", "osv-scanner", "k6", "playwright"}  # core only by default
     assert by_name["k6"]["install_cmd"] == "brew install k6"
+    assert by_name["playwright"]["install_cmd"].endswith("-m pip install playwright>=1.48")
     assert not any(t["installed"] for t in data["tools"])
 
 

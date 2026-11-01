@@ -33,6 +33,7 @@ SecQA turns Claude Code into a security and performance tester for any repositor
 |---|---|
 | 🧭 **Stack-aware agent skills** | Ten Claude Code skills that pick tools based on what recon finds, and stop when something is out of scope. |
 | 🗂️ **Central Hub** | Multi-project web app: executions, findings triage, defect tracker (table + kanban), test-case repository, performance trends, compliance matrix. |
+| 📸 **Visual evidence** | `secqa capture` screenshots what an issue looks like: SQLi logging in as admin, or a changed id in the URL showing someone else's data. It highlights the proof, auto-masks emails, hashes and tokens, and stamps URL, time and run. Before/after shots travel from finding to defect and into the PDF report. |
 | 🔁 **Remembers decisions** | Findings are fingerprinted. False positives stay suppressed in later runs, and a defect reopens by itself if its finding comes back. |
 | ⏱️ **SLA & MTTR** | Due dates by severity, breach tracking, opened-vs-resolved flow, mean time to resolve. |
 | ⚡ **Performance with baselines** | k6 profiles (smoke, load, stress, spike, soak) capped by `scope.yml`. Results per endpoint, automatic regression detection, and a defect opened on regression. JMeter results can be imported too. |
@@ -92,6 +93,7 @@ REST API with OpenAPI docs at `/api/docs`.
 |---|---|
 | ![Defects board](docs/images/defects-board.png) | ![Findings triage](docs/images/findings.png) |
 | ![Perf run vs baseline](docs/images/run-perf.png) | ![Compliance matrix](docs/images/compliance.png) |
+| ![Before/after screenshot evidence](docs/images/evidence.png) | ![Defect detail](docs/images/defect-detail.png) |
 
 ## CLI at a glance
 
@@ -100,6 +102,7 @@ secqa run start --kind security --target http://127.0.0.1:3000
 secqa ingest sarif semgrep.sarif --source sast
 secqa finding add --title "IDOR on basket" --severity high --category idor --endpoint "GET /rest/basket/{id}"
 secqa audit "nuclei -u http://127.0.0.1:3000" --target 127.0.0.1:3000
+secqa capture "http://127.0.0.1:3000/basket?id=3" -o after.png --highlight "#owner" --caption "After: id=3 shows Bob's basket" --finding 42
 secqa scope check http://127.0.0.1:3000 --profile load --vus 20
 secqa ingest k6 secqa-out/k6-summary.json --scenario load
 secqa run finish
@@ -119,7 +122,7 @@ src/secqa/
   scope.py            scope.yml enforcement
   hub/                FastAPI app, models, migrations, parsers, services
 frontend/             React + TypeScript UI (built into the Hub)
-examples/             demo (Hub + Juice Shop), CI workflow
+examples/             demo (Hub + Juice Shop), vuln-lab (tiny vulnerable app, no Docker), CI workflow
 docs/                 architecture, integrations, deployment
 ```
 

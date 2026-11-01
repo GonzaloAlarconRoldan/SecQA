@@ -21,7 +21,7 @@ def test_sarif_semgrep_maps_cwe_severity_and_location():
     assert sqli["cvss_score"] == 9.1
     assert sqli["cwe_id"] == "CWE-89"
     assert (sqli["file_path"], sqli["line_start"], sqli["line_end"]) == ("routes/login.ts", 34, 36)
-    assert sqli["fingerprint"] == "abc123"
+    assert sqli["fingerprint"] is None  # "abc123" is too short to trust as a tool fingerprint
     assert sqli["source"] == "sast"
     assert "sequelize" in sqli["evidence"]
     assert xss["category"] == "xss"
@@ -93,3 +93,20 @@ def test_junit_blocks_entity_expansion():
     evil = '<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "aaaa">]><testsuite><testcase name="&a;"/></testsuite>'
     with pytest.raises(Exception):  # defusedxml refuses entity declarations
         parse_junit(evil)
+
+
+def test_sarif_placeholder_fingerprints_do_not_collapse_findings():
+    # Semgrep OSS without login writes the same placeholder for every result
+    doc = {"runs": [{"tool": {"driver": {"name": "Semgrep OSS"}}, "results": [
+        {"ruleId": "r1", "message": {"text": "a"}, "fingerprints": {"matchBasedId/v1": "requires login"},
+         "locations": [{"physicalLocation": {"artifactLocation": {"uri": "a.py"}, "region": {"startLine": 1}}}]},
+        {"ruleId": "r2", "message": {"text": "b"}, "fingerprints": {"matchBasedId/v1": "requires login"},
+         "locations": [{"physicalLocation": {"artifactLocation": {"uri": "a.py"}, "region": {"startLine": 9}}}]},
+        {"ruleId": "r3", "message": {"text": "c"},
+         "partialFingerprints": {"primaryLocationLineHash": "9f1c2e7ab33d4f01:1"},
+         "locations": [{"physicalLocation": {"artifactLocation": {"uri": "file:///repo/b.py"}}}]},
+    ]}]}
+    items = parse_sarif(doc)
+    assert items[0]["fingerprint"] is None and items[1]["fingerprint"] is None
+    assert len(items[2]["fingerprint"]) == 40
+    assert items[2]["file_path"] == "/repo/b.py"
