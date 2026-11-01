@@ -112,15 +112,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         })
 
     if STATIC_DIR.joinpath("index.html").exists():
+        # Allow-list built once at startup: the request path is only a dictionary key and never
+        # reaches the filesystem, so traversal is impossible by construction.
+        static_files = {p.relative_to(STATIC_DIR).as_posix(): p for p in STATIC_DIR.rglob("*") if p.is_file()}
+        index_html = STATIC_DIR / "index.html"
+
         @app.get("/{full_path:path}", include_in_schema=False)
         def spa(full_path: str):
             if full_path.startswith("api/"):
                 raise HTTPException(404)
-            if full_path:
-                candidate = (STATIC_DIR / full_path).resolve()
-                # containment first: never touch the filesystem outside the bundled UI
-                if candidate.is_relative_to(STATIC_DIR) and candidate.is_file():
-                    return FileResponse(candidate)
-            return FileResponse(STATIC_DIR / "index.html")
+            return FileResponse(static_files.get(full_path, index_html))
 
     return app
