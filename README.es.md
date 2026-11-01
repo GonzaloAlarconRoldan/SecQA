@@ -45,13 +45,14 @@ Abre **http://127.0.0.1:8787**. El Hub viene con 12 semanas de historial de OWAS
 ```bash
 pip install "secqa[hub] @ git+https://github.com/GonzaloAlarconRoldan/SecQA"
 secqa hub serve
+secqa doctor --install              # instala semgrep, gitleaks, osv-scanner y k6 (pregunta antes)
 secqa init /ruta/a/tu-proyecto --project SHOP
 cd /ruta/a/tu-proyecto
 secqa project create SHOP --name "Shop API"
 cp scope.yml.example scope.yml      # hosts permitidos, límites de carga, quién autoriza
 ```
 
-Y en Claude Code: `/pentest-run`, `/perf-test`, `/pentest-report`.
+Y en Claude Code: `/secqa-setup` (prepara herramientas, Hub y scope), `/pentest-run`, `/perf-test`, `/pentest-report`.
 
 ## Uso responsable
 

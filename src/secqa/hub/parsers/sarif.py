@@ -73,6 +73,14 @@ def _text(obj: dict[str, Any] | None) -> str | None:
     return obj.get("markdown") or obj.get("text")
 
 
+def _clean_uri(uri: str | None) -> str | None:
+    if not uri:
+        return uri
+    if uri.startswith("file://"):
+        uri = uri[len("file://"):]
+    return uri[2:] if uri.startswith("./") else uri
+
+
 def parse_sarif(doc: dict[str, Any], default_source: str | None = None) -> list[dict[str, Any]]:
     if not isinstance(doc, dict) or "runs" not in doc:
         raise ValueError("not a SARIF document (missing 'runs')")
@@ -100,7 +108,7 @@ def parse_sarif(doc: dict[str, Any], default_source: str | None = None) -> list[
 
             loc = (result.get("locations") or [{}])[0].get("physicalLocation", {})
             region = loc.get("region", {})
-            uri = loc.get("artifactLocation", {}).get("uri")
+            uri = _clean_uri(loc.get("artifactLocation", {}).get("uri"))
             message = _text(result.get("message")) or rule_id or "finding"
             title = _text(rule.get("shortDescription")) or message.splitlines()[0][:200]
             fingerprints = result.get("partialFingerprints") or result.get("fingerprints") or {}

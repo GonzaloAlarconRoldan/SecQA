@@ -75,6 +75,8 @@ def test_cli_init_installs_agent_kit(tmp_path):
     assert cli.main(["init", str(tmp_path), "--project", "shop"]) == 0
     assert (tmp_path / ".claude/skills/pentest-run/SKILL.md").is_file()
     assert (tmp_path / ".claude/skills/perf-test/SKILL.md").is_file()
+    assert (tmp_path / ".claude/skills/secqa-setup/SKILL.md").is_file()
+    assert (tmp_path / "secqa-out").is_dir()
     assert (tmp_path / "perf/scenarios/endpoints.js").is_file()
     assert "project: SHOP" in (tmp_path / ".secqa/config.yml").read_text()
     assert "scope.yml" in (tmp_path / ".gitignore").read_text()
@@ -89,3 +91,46 @@ def test_demo_seed_is_idempotent(tmp_path):
     s = Settings(data_dir=tmp_path)
     assert "seeded" in seed(s)
     assert "already exists" in seed(s)
+
+
+def test_relativize_sarif_strips_local_paths(tmp_path):
+    doc = {"runs": [{"results": [{"locations": [{"physicalLocation": {"artifactLocation": {
+        "uri": f"file://{tmp_path}/frontend/package-lock.json"}}}]}, {"locations": [{"physicalLocation": {
+        "artifactLocation": {"uri": "/somewhere/else/secret.txt"}}}]}, {"locations": [{"physicalLocation": {
+        "artifactLocation": {"uri": "src/app.py"}}}]}]}]}
+    assert cli.relativize_sarif(doc, tmp_path) == 2
+    uris = [r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] for r in doc["runs"][0]["results"]]
+    assert uris == ["frontend/package-lock.json", "secret.txt", "src/app.py"]
+
+
+def test_doctor_reports_missing_tools_and_install_commands(monkeypatch, capsys):
+    import json
+
+    from secqa import tools
+
+    monkeypatch.setattr(tools.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(tools.shutil, "which", lambda b: "/usr/bin/brew" if b == "brew" else None)
+    assert cli.main(["--json", "doctor"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["package_managers"] == ["brew"]
+    by_name = {t["name"]: t for t in data["tools"]}
+    assert set(by_name) == {"semgrep", "gitleaks", "osv-scanner", "k6"}  # core only by default
+    assert by_name["k6"]["install_cmd"] == "brew install k6"
+    assert not any(t["installed"] for t in data["tools"])
+
+
+def test_doctor_install_never_runs_without_confirmation(monkeypatch, capsys):
+    from secqa import tools
+
+    calls = []
+    monkeypatch.setattr(tools.shutil, "which", lambda b: "/usr/bin/brew" if b == "brew" else None)
+    monkeypatch.setattr(tools, "run_install", lambda cmd: calls.append(cmd) or True)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    assert cli.main(["doctor", "--install", "--only", "k6"]) == 1
+    assert calls == []
+    assert "refusing to install" in capsys.readouterr().err
+
+
+def test_doctor_rejects_unknown_tool(capsys):
+    assert cli.main(["doctor", "--only", "nmapx"]) == 1
+    assert "unknown tool" in capsys.readouterr().err

@@ -29,6 +29,10 @@ def _thresholds(metric: dict[str, Any]) -> dict[str, bool]:
     return out
 
 
+def _ms(value: Any) -> float | None:
+    return round(float(value), 3) if value is not None else None
+
+
 def _row(name: str, dur: dict[str, Any], reqs: dict[str, Any] | None, failed: dict[str, Any] | None,
          duration_s: float | None) -> dict[str, Any]:
     d = _values(dur)
@@ -51,13 +55,13 @@ def _row(name: str, dur: dict[str, Any], reqs: dict[str, Any] | None, failed: di
         "failures": failures,
         "error_rate": round(error_rate, 6),
         "rps": round(float(rps), 3) if rps is not None else None,
-        "avg_ms": d.get("avg"),
-        "min_ms": d.get("min"),
-        "med_ms": d.get("med"),
-        "p90_ms": d.get("p(90)"),
-        "p95_ms": d.get("p(95)"),
-        "p99_ms": d.get("p(99)"),
-        "max_ms": d.get("max"),
+        "avg_ms": _ms(d.get("avg")),
+        "min_ms": _ms(d.get("min")),
+        "med_ms": _ms(d.get("med")),
+        "p90_ms": _ms(d.get("p(90)")),
+        "p95_ms": _ms(d.get("p(95)")),
+        "p99_ms": _ms(d.get("p(99)")),
+        "max_ms": _ms(d.get("max")),
     }
 
 
@@ -88,7 +92,10 @@ def parse_k6_summary(doc: dict[str, Any]) -> dict[str, Any]:
         if not m:
             continue
         tags = dict(t.split(":", 1) for t in m.group("tags").split(",") if ":" in t)
-        label = tags.get("name") or tags.get("url") or m.group("tags")
+        # Only request-group sub-metrics are endpoints; skip k6's built-ins like {expected_response:true}.
+        label = tags.get("name") or tags.get("url")
+        if not label:
+            continue
         groups.setdefault(label, {})[m.group("metric")] = metric
     for label, group in sorted(groups.items()):
         if "http_req_duration" not in group:

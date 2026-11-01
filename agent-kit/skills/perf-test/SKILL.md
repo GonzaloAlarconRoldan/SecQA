@@ -31,6 +31,7 @@ Si no existe `perf/endpoints.json`, créalo desde `perf/endpoints.example.json` 
 ```bash
 secqa run start --kind performance --name "<perfil> — <versión/rama>" --target <BASE_URL> --env local-docker
 secqa audit "k6 run PROFILE=<perfil> VUS=<N>" --target <host:puerto>
+mkdir -p secqa-out
 k6 run -e BASE_URL=<BASE_URL> -e PROFILE=<perfil> -e VUS=<N> -e MAX_VUS=<performance.max_vus> \
        -e P95_MS=<umbral> -e ERROR_RATE=<umbral> perf/scenarios/endpoints.js
 secqa ingest k6 secqa-out/k6-summary.json --scenario <perfil>
@@ -39,7 +40,7 @@ secqa run finish
 
 Umbrales: usa `performance.thresholds` de `scope.yml` si existen; si no, p95 500 ms y error < 1 %.
 
-Si k6 no está instalado: `brew install k6` / `choco install k6` / imagen `grafana/k6` (con `--network host` para llegar a localhost).
+Si k6 no está instalado: `secqa doctor --only k6` y, con permiso del usuario, `secqa doctor --install --yes --only k6` (o la skill **secqa-setup**). Alternativa sin instalar: imagen `grafana/k6` con `--network host`.
 
 **JMeter** (si el equipo ya tiene planes `.jmx`): ejecútalo headless con salida CSV y súbelo:
 ```bash
