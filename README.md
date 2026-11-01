@@ -19,7 +19,7 @@
 SecQA turns Claude Code into a security and performance tester for any repository. It detects the stack, runs the right scanners (SAST, SCA, secrets, API, DAST) and k6 load tests. Everything it finds lands in the **SecQA Hub**, where people triage findings, track defects against SLAs and watch trends across runs.
 
 ```
-/pentest-run        →  recon · SAST · SCA · secrets · API · DAST   →  findings
+/pentest-run        →  recon · intel (OSV · KEV · EPSS · NVD) · SAST · SCA · secrets · API · DAST  →  findings
 /perf-test          →  k6 smoke / load / stress against a baseline →  latency, throughput, regressions
                                      │
                               secqa CLI (validated)
@@ -31,8 +31,9 @@ SecQA turns Claude Code into a security and performance tester for any repositor
 
 | | |
 |---|---|
-| 🧭 **Stack-aware agent skills** | Ten Claude Code skills that pick tools based on what recon finds, and stop when something is out of scope. |
+| 🧭 **Stack-aware agent skills** | Eleven Claude Code skills that pick tools based on what recon finds, and stop when something is out of scope. |
 | 🗂️ **Central Hub** | Multi-project web app: executions, findings triage, defect tracker (table + kanban), test-case repository, performance trends, compliance matrix. |
+| 🛰️ **Fresh vulnerability intel every run** | `secqa detect` inventories the exact versions in your lockfiles. `secqa intel` checks them against **OSV.dev / GitHub Advisories**, **CISA KEV** (actively exploited → critical), **FIRST EPSS** and the CVEs **NVD** published for your stack in the last 30 days. The agent then reads the vendors' own security advisories. |
 | 📸 **Visual evidence** | `secqa capture` screenshots what an issue looks like: SQLi logging in as admin, or a changed id in the URL showing someone else's data. It highlights the proof, auto-masks emails, hashes and tokens, and stamps URL, time and run. Before/after shots travel from finding to defect and into the PDF report. |
 | 🔁 **Remembers decisions** | Findings are fingerprinted. False positives stay suppressed in later runs, and a defect reopens by itself if its finding comes back. |
 | ⏱️ **SLA & MTTR** | Due dates by severity, breach tracking, opened-vs-resolved flow, mean time to resolve. |
@@ -98,6 +99,8 @@ REST API with OpenAPI docs at `/api/docs`.
 ## CLI at a glance
 
 ```bash
+secqa detect --upload                      # languages, frameworks, exact component versions
+secqa intel --ingest                       # OSV + CISA KEV + EPSS + recent NVD CVEs for this stack
 secqa run start --kind security --target http://127.0.0.1:3000
 secqa ingest sarif semgrep.sarif --source sast
 secqa finding add --title "IDOR on basket" --severity high --category idor --endpoint "GET /rest/basket/{id}"

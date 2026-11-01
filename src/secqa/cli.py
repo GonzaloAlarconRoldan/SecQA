@@ -406,6 +406,96 @@ def cmd_capture(args) -> None:
         print(f"[ok] attached to {target.replace('s/', ' #')} (attachment {a['id']})")
 
 
+def _exclude_from_scope(path: str) -> list[str]:
+    scope_file = Path(path) / "scope.yml"
+    if scope_file.is_file():
+        with contextlib.suppress(ScopeError):
+            return load_scope(scope_file).exclude_paths
+    return []
+
+
+def cmd_detect(args) -> None:
+    from .detect import detect
+
+    report = detect(args.path, exclude=_exclude_from_scope(args.path)).to_dict()
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report, indent=2), "utf-8")
+    if args.json:
+        _out(args, report)
+    else:
+        langs = ", ".join(f"{k} ({v})" for k, v in list(report["languages"].items())[:6])
+        rows = [
+            ("Languages", langs or "—"),
+            ("Frameworks", ", ".join(report["frameworks"]) or "—"),
+            ("Data", ", ".join(report["databases"]) or "—"),
+            ("Auth", ", ".join(report["auth"]) or "—"),
+            ("API", (", ".join(report["api_kind"]) + "  " + ", ".join(report["api_spec_files"][:3])).strip() or "—"),
+            ("Package mgrs", ", ".join(report["package_managers"]) or "—"),
+            ("Components", f"{report['component_count']} ({report['pinned_count']} with exact versions)"),
+            ("Docker", ", ".join(report["docker_images"]) or ("yes" if report["has_docker"] else "—")),
+            ("Ports", ", ".join(map(str, report["exposed_ports"])) or "—"),
+            ("IaC", f"{len(report['iac'])} file(s)" if report["iac"] else "—"),
+            (".env files", ", ".join(report["env_files"]) or "—"),
+        ]
+        print("\n".join(f"  {k:13} {v}" for k, v in rows))
+        if report["unparsed"]:
+            print(f"  {'Not parsed':13} {', '.join(report['unparsed'])}  → osv-scanner covers these")
+        print(f"\n[ok] {out}")
+    if args.upload:
+        _call(args, "PATCH", f"/api/runs/{_run_id(args)}", json={"stack_detected": report})
+        print(f"[ok] stack stored on run #{_run_id(args)}")
+
+
+def cmd_intel(args) -> None:
+    from .detect import detect
+    from .intel import run_intel
+
+    stack_file = Path(args.stack)
+    if stack_file.is_file():
+        stack = json.loads(stack_file.read_text("utf-8"))
+    else:
+        stack = detect(".", exclude=_exclude_from_scope(".")).to_dict()
+    keywords = [k.strip() for k in args.keywords.split(",") if k.strip()] if args.keywords else None
+    print(f"[intel] checking {stack.get('pinned_count', '?')} pinned components against OSV.dev, CISA KEV, "
+          f"FIRST EPSS" + ("" if args.no_nvd else f" and NVD (last {args.days} days)") + " …", file=sys.stderr)
+    report = run_intel(stack, days=args.days, nvd=not args.no_nvd, keywords=keywords,
+                       include_dev=not args.prod_only)
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(report, indent=2), "utf-8")
+    if args.json:
+        _out(args, report)
+    else:
+        for name, src in report["sources"].items():
+            state = "ok" if src.get("ok") else f"FAILED ({src.get('error')})"
+            extra = {"osv": f"{src.get('queried', 0)} components, {src.get('vulns', 0)} advisories",
+                     "kev": f"catalog {src.get('catalog_version')}, {src.get('count')} exploited CVEs",
+                     "epss": f"{src.get('scored', 0)} CVEs scored",
+                     "nvd": f"{src.get('results', 0)} recent CVEs for {', '.join(src.get('keywords') or []) or '—'}",
+                     }.get(name, "") if src.get("ok") else ""
+            print(f"  {name.upper():5} {state:4} {extra}")
+        st = report["stats"]
+        print(f"\n  {st['vulns']} known vulnerabilities in {st['affected_components']} component(s) — "
+              f"{st['kev']} actively exploited (KEV), {st['epss_high']} with EPSS ≥ 50 %")
+        print("  by severity: " + ", ".join(f"{k} {v}" for k, v in st["by_severity"].items()))
+        for a in report["affected"][:10]:
+            c = a["component"]
+            flag = " KEV" if a["kev"] else (f" EPSS {a['epss']:.0%}" if (a["epss"] or 0) >= 0.5 else "")
+            fix = f" → {a['recommended_fix']}" if a.get("recommended_fix") else ""
+            print(f"   {a['severity']:8} {c['name']}@{c['version']}{fix}  {(a['cves'] or [a['id']])[0]}{flag}")
+        if report["watchlist"]:
+            print(f"\n  Watchlist — published in the last {args.days} days (keyword match, verify applicability):")
+            for w in report["watchlist"][:8]:
+                print(f"   {(w['severity'] or '?'):8} {w['id']}  [{w['keyword']}]{' KEV' if w['kev'] else ''}  "
+                      f"{w['summary'][:90]}")
+        print(f"\n[ok] {out}")
+    if args.ingest:
+        res = _call(args, "POST", f"/api/runs/{_run_id(args)}/intel", json=report)
+        print(f"[ok] {res['created']} finding(s) in run #{_run_id(args)} "
+              f"({res['suppressed']} auto-suppressed, {res['skipped']} duplicates)")
+
+
 def cmd_results_add(args) -> None:
     items = json.loads(Path(args.file).read_text("utf-8"))
     res = _call(args, "POST", f"/api/runs/{_run_id(args)}/results", json=items)
@@ -601,6 +691,23 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--screenshot", action="append", metavar="FILE[::caption]",
                    help="attach evidence (repeatable), e.g. --screenshot 'after.png::id=2 shows another user'")
     s.set_defaults(func=cmd_finding_add)
+
+    s = sub.add_parser("detect", help="detect languages, frameworks, components and versions (read-only)")
+    s.add_argument("path", nargs="?", default=".")
+    s.add_argument("-o", "--output", default="secqa-out/stack.json")
+    s.add_argument("--upload", action="store_true", help="store the result on the current run")
+    s.set_defaults(func=cmd_detect)
+
+    s = sub.add_parser("intel", help="check the stack against OSV, CISA KEV, EPSS and recent NVD CVEs")
+    s.add_argument("--stack", default="secqa-out/stack.json", help="output of `secqa detect` (detects if missing)")
+    s.add_argument("--days", type=int, default=30, help="NVD watchlist window (max 120)")
+    s.add_argument("--keywords", help="NVD watchlist keywords (default: detected frameworks, DBs, images)")
+    s.add_argument("--no-nvd", action="store_true", help="skip the NVD watchlist (faster)")
+    s.add_argument("--prod-only", action="store_true", help="ignore dev dependencies")
+    s.add_argument("-o", "--output", default="secqa-out/intel.json")
+    s.add_argument("--ingest", action="store_true", help="create findings and store the summary on the current run")
+    s.add_argument("--run")
+    s.set_defaults(func=cmd_intel)
 
     s = sub.add_parser("attach", help="attach evidence files to a finding or defect")
     s.add_argument("files", nargs="+", metavar="FILE[::caption]")

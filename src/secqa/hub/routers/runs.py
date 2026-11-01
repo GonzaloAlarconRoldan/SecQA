@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, select
@@ -41,6 +41,7 @@ from ..schemas import (
 )
 from ..services.defects import create_defect
 from ..services.findings import ingest_findings
+from ..services.intel import ingest_intel
 from ..services.perf import compare_to_baseline, store_perf
 
 router = APIRouter(tags=["runs"])
@@ -261,6 +262,18 @@ def _store_results(db: Session, run: Run, items: list[TestResultCreate]) -> int:
                           **item.model_dump(exclude={"test_case_key"})))
     db.flush()
     return len(items)
+
+
+@router.post("/runs/{run_id}/intel", response_model=IngestResult)
+def add_intel(run_id: int, report: dict[str, Any], db: DB, actor: Actor):
+    """Store a `secqa intel` report: vulnerable components become findings (KEV/EPSS-prioritised)
+    and sources, stats and the recent-CVE watchlist are kept in the run summary."""
+    run = get_or_404(db, Run, run_id)
+    result = ingest_intel(db, run, report, actor)
+    db.add(AuditLog(project_id=run.project_id, run_id=run.id, actor=actor,
+                    action=f"ingested threat intel ({result.created} findings, {result.detail.get('kev', 0)} in KEV)"))
+    db.commit()
+    return result
 
 
 @router.post("/runs/{run_id}/results", response_model=IngestResult)

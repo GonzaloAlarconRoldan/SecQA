@@ -376,3 +376,74 @@ export interface ComplianceRow {
   state: ComplianceState;
 }
 export type Compliance = Record<string, ComplianceRow[]>;
+
+// ---- threat intel (run.summary.intel, written by `secqa intel --ingest`) ----
+export interface IntelSource {
+  ok: boolean;
+  error?: string;
+  queried?: number;
+  unpinned?: number;
+  vulns?: number;
+  catalog_version?: string;
+  count?: number;
+  scored?: number;
+  keywords?: string[];
+  results?: number;
+  window_days?: number;
+  authenticated?: boolean;
+}
+
+export interface IntelKevHit {
+  id: string | null;
+  cve: string | null;
+  component: string;
+  due_date: string | null;
+  ransomware: string | null;
+}
+
+export interface IntelWatchItem {
+  keyword: string;
+  id: string;
+  published: string | null;
+  severity: string | null;
+  score: number | null;
+  summary: string;
+  kev: boolean;
+  url: string;
+  match?: "cpe" | "text";
+}
+
+export interface IntelSummary {
+  generated_at: string | null;
+  window_days: number | null;
+  sources: Partial<Record<"osv" | "kev" | "epss" | "nvd", IntelSource>>;
+  stats: {
+    components?: number;
+    affected_components?: number;
+    vulns?: number;
+    kev?: number;
+    epss_high?: number;
+    by_severity?: Partial<Record<Severity, number>>;
+    watchlist?: number;
+  };
+  kev: IntelKevHit[];
+  watchlist: IntelWatchItem[];
+}
+
+export interface StackDetected {
+  languages?: Record<string, number>;
+  frameworks?: string[];
+  databases?: string[];
+  auth?: string[];
+  api_kind?: string[];
+  package_managers?: string[];
+  manifests?: string[];
+  docker_images?: string[];
+  exposed_ports?: number[];
+  component_count?: number;
+  pinned_count?: number;
+  has_api?: boolean;
+  has_docker?: boolean;
+  env_files?: string[];
+  unparsed?: string[];
+}

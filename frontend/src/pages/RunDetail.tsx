@@ -2,15 +2,16 @@ import { ArrowLeft, Check, Star, X as XIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAudit, useRun, useRunCompare, useRunPerf, useRunResults, useUpdateRun } from "../api/hooks";
-import type { Run } from "../api/types";
+import type { IntelSummary, Run, StackDetected } from "../api/types";
 import { FindingsExplorer } from "../components/FindingsExplorer";
+import { IntelTab, StackCard } from "../components/RunIntel";
 import { Card, cx, Empty, ErrorState, Pill, PlainText, SeverityBar, Skeleton, TableSkeleton, Tabs } from "../components/ui";
 import { fmtDate, fmtDuration, fmtMs, fmtNum, fmtPct } from "../lib/format";
 import { usePrefs } from "../lib/prefs";
 import { useProjectKey, withProject } from "../lib/project";
 import { useToast } from "../lib/toast";
 
-type Tab = "findings" | "results" | "perf" | "audit";
+type Tab = "findings" | "intel" | "results" | "perf" | "audit";
 
 function ResultsTab({ runId }: { runId: number }) {
   const { t } = usePrefs();
@@ -238,7 +239,8 @@ export default function RunDetailPage() {
     [t("c.started"), fmtDate(run.started_at, lang)],
     [t("c.duration"), fmtDuration(run.duration_s)],
   ];
-  const stack = run.stack_detected ? JSON.stringify(run.stack_detected, null, 2) : null;
+  const stack = run.stack_detected as StackDetected | null;
+  const intel = (run.summary?.intel ?? null) as IntelSummary | null;
 
   return (
     <>
@@ -295,25 +297,23 @@ export default function RunDetailPage() {
             <PlainText text={run.notes} />
           </div>
         )}
-        {stack && (
-          <details className="sm:col-span-2 lg:col-span-4">
-            <summary className="label cursor-pointer">{t("rn.stack")}</summary>
-            <pre className="pre mt-2">{stack}</pre>
-          </details>
-        )}
       </div>
+
+      {stack && <StackCard stack={stack} />}
 
       <Tabs<Tab>
         value={active}
         onChange={setTab}
         tabs={[
           { id: "findings", label: t("rn.findings") },
+          ...(intel ? [{ id: "intel" as const, label: `${t("rn.intel")}${intel.stats?.kev ? ` · ${intel.stats.kev} KEV` : ""}` }] : []),
           { id: "results", label: `${t("rn.results")} (${Object.values(run.results_by_status).reduce((a, b) => a + (b ?? 0), 0)})` },
           { id: "perf", label: t("rn.perf") },
           { id: "audit", label: t("rn.audit") },
         ]}
       />
       {active === "findings" && <FindingsExplorer runId={run.id} />}
+      {active === "intel" && intel && <IntelTab intel={intel} projectKey={run.project_key} />}
       {active === "results" && <ResultsTab runId={run.id} />}
       {active === "perf" && <PerfTab run={run} />}
       {active === "audit" && <AuditTab run={run} />}
