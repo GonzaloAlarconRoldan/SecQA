@@ -5,6 +5,11 @@ All notable changes to this project are documented here. Format based on [Keep a
 ## [2.0.0] - 2026-11-01
 
 ### Added
+- **Stack detection & vulnerability intelligence**:
+  - `secqa detect` is a deterministic inventory: languages, frameworks, DB, auth, APIs, Docker images, ports, and exact component versions from npm, PyPI, Go, Maven, RubyGems, Packagist, crates.io and NuGet lockfiles.
+  - `secqa intel` checks that inventory against OSV.dev, CISA KEV, FIRST EPSS and NVD (last N days, filtered by CPE or description). KEV bumps a finding to critical and EPSS ≥ 50 % to at least high. It recommends the version to upgrade to and caches each source.
+  - New `pentest-intel` phase on every run, including a review of recent official vendor advisories.
+  - Threat intel tab and detected-stack card in the run view.
 - **Visual evidence**:
   - `secqa capture` (Playwright screenshot after a scope check, with highlight, auto-masking of emails, JWTs, hashes, cards and keys, a URL/time/run banner, and form fill + submit for login-bypass proofs),
   - `secqa attach`, and `finding add --screenshot`,

@@ -367,8 +367,13 @@ export function FindingsExplorer({ runId, initial }: { runId?: number; initial?:
                     <SeverityBadge severity={f.severity} />
                   </td>
                   <td className="max-w-[420px]" onClick={() => setOpenId(f.id)}>
-                    <button className="block w-full truncate text-left font-medium hover:underline" onClick={() => setOpenId(f.id)}>
-                      {f.title}
+                    <button className="flex w-full items-center gap-1.5 text-left font-medium hover:underline" onClick={() => setOpenId(f.id)}>
+                      {f.description?.includes("CISA KEV") && (
+                        <span className="pill shrink-0 bg-red-600 px-1.5 text-[10px] text-white no-underline" title={t("fd.kevBadge")}>
+                          KEV
+                        </span>
+                      )}
+                      <span className="truncate">{f.title}</span>
                     </button>
                     <div className="muted flex gap-2 text-xs">
                       <span className="font-mono">{f.category}</span>
