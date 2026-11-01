@@ -1,0 +1,62 @@
+# Example: run SecQA scanners in CI and push results to your Hub.
+# Copy to .github/workflows/secqa.yml in the project under test.
+# Secrets: SECQA_URL (https://secqa.your-company.internal), SECQA_TOKEN.
+name: SecQA
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 3 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    env:
+      SECQA_URL: ${{ secrets.SECQA_URL }}
+      SECQA_TOKEN: ${{ secrets.SECQA_TOKEN }}
+      SECQA_PROJECT: SHOP
+      SECQA_ACTOR: ci:github-actions
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0          # gitleaks scans history
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install "secqa @ git+https://github.com/GonzaloAlarconRoldan/SecQA" semgrep
+      - run: secqa run start --kind security --name "CI ${{ github.ref_name }}" --env ci
+      - run: semgrep --config auto --sarif -o semgrep.sarif . || true
+      - run: secqa ingest sarif semgrep.sarif --source sast
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+        continue-on-error: true
+      - run: '[ -f results.sarif ] && secqa ingest sarif results.sarif --source secrets || true'
+      - if: always()
+        run: secqa run finish
+
+  performance:
+    runs-on: ubuntu-latest
+    env:
+      SECQA_URL: ${{ secrets.SECQA_URL }}
+      SECQA_TOKEN: ${{ secrets.SECQA_TOKEN }}
+      SECQA_PROJECT: SHOP
+      SECQA_ACTOR: ci:github-actions
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker compose up -d --wait        # your app, on this runner only
+      - uses: grafana/setup-k6-action@v1
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install "secqa @ git+https://github.com/GonzaloAlarconRoldan/SecQA"
+      # scope.yml is git-ignored locally; commit a CI-specific one that only allows the runner's loopback
+      - run: secqa scope check http://127.0.0.1:3000 --profile load --vus 20 --scope .github/secqa-scope.yml
+      - run: secqa run start --kind performance --name "CI load ${{ github.sha }}" --target http://127.0.0.1:3000 --env ci
+      - run: k6 run -e BASE_URL=http://127.0.0.1:3000 -e PROFILE=load -e VUS=20 -e MAX_VUS=20 -e DURATION=1m perf/scenarios/endpoints.js
+        continue-on-error: true   # let the Hub decide pass/fail against baseline
+      - run: secqa ingest k6 secqa-out/k6-summary.json --scenario load
+      - run: secqa --json run finish | python -c "import json,sys; sys.exit(json.load(sys.stdin)['status'] == 'failed')"

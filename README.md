@@ -1,100 +1,129 @@
-# SecQA — Framework de QA de seguridad para Claude Code
+<div align="center">
 
-Framework portable que convierte a Claude Code en un "pentester" dentro de cualquier
-repositorio: detecta el stack automáticamente, busca vulnerabilidades (inyecciones,
-secretos expuestos, dependencias vulnerables, riesgos de red y de API), y deja los
-hallazgos en una base de datos local para que un humano los revise, apruebe, rechace
-o complemente antes de generar un reporte.
+# SecQA
 
-No es un escáner específico de un lenguaje o framework — en la fase de recon detecta
-qué tecnologías usa el proyecto objetivo y adapta qué herramientas invocar.
+**AI-assisted security & performance QA for Claude Code — with a central Hub for runs, test cases and defects.**
 
-## Componentes
+[![CI](https://github.com/GonzaloAlarconRoldan/SecQA/actions/workflows/ci.yml/badge.svg)](https://github.com/GonzaloAlarconRoldan/SecQA/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/GonzaloAlarconRoldan/SecQA/actions/workflows/codeql.yml/badge.svg)](https://github.com/GonzaloAlarconRoldan/SecQA/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.10%E2%80%933.13-3776AB)
+![k6](https://img.shields.io/badge/perf-k6%20%7C%20JMeter-7D64FF)
+
+[Español](README.es.md) · [Architecture](docs/architecture.md) · [Integrations](docs/integrations.md) · [Deployment](docs/deployment.md)
+
+![SecQA Hub overview](docs/images/overview.png)
+
+</div>
+
+SecQA turns Claude Code into a security and performance tester for any repository. It detects the stack, runs the right scanners (SAST, SCA, secrets, API, DAST) and k6 load tests. Everything it finds lands in the **SecQA Hub**, where people triage findings, track defects against SLAs and watch trends across runs.
 
 ```
-.claude/skills/        Skills de Claude Code que orquestan cada fase (ver abajo)
-tools/db/               Esquema SQLite (findings.db) + script de inicialización
-tools/server/           Dashboard de revisión local (API + UI) — sin dependencias externas
-tools/report/           Generador de reportes HTML/PDF filtrados
-tools/mapping/          Mapeo de categorías de hallazgo → OWASP / CWE / ISO-IEC 27001 Anexo A
-scope.yml.example       Plantilla de alcance autorizado (hosts, agresividad permitida)
-install.sh              Copia el framework dentro de otro proyecto
+/pentest-run        →  recon · SAST · SCA · secrets · API · DAST   →  findings
+/perf-test          →  k6 smoke / load / stress against a baseline →  latency, throughput, regressions
+                                     │
+                              secqa CLI (validated)
+                                     ▼
+            SecQA Hub — executions · triage · defects · test cases · compliance · reports
 ```
 
-## Fases (skills)
+## Highlights
 
-1. **pentest-recon** — detecta lenguajes, frameworks, infraestructura, y si hay API.
-2. **pentest-sast** — vulnerabilidades en el código fuente propio (inyecciones, XSS, IDOR, deserialización, etc.).
-3. **pentest-sca** — dependencias con CVEs conocidos y misconfiguración de Dockerfiles/IaC.
-4. **pentest-secrets** — credenciales y datos sensibles expuestos en el código/historial de git.
-5. **pentest-api** — si hay API (REST/GraphQL/gRPC), pruebas específicas mapeadas a OWASP API Top 10.
-6. **pentest-dast** — pruebas dinámicas y de red contra un entorno local controlado (solo con confirmación).
-7. **pentest-report** — abre el dashboard de revisión o genera reportes HTML/PDF.
-8. **pentest-run** — orquesta las fases anteriores en orden.
+| | |
+|---|---|
+| 🧭 **Stack-aware agent skills** | Nine Claude Code skills that pick tools based on what recon finds, and stop when something is out of scope. |
+| 🗂️ **Central Hub** | Multi-project web app: executions, findings triage, defect tracker (table + kanban), test-case repository, performance trends, compliance matrix. |
+| 🔁 **Remembers decisions** | Findings are fingerprinted. False positives stay suppressed in later runs, and a defect reopens by itself if its finding comes back. |
+| ⏱️ **SLA & MTTR** | Due dates by severity, breach tracking, opened-vs-resolved flow, mean time to resolve. |
+| ⚡ **Performance with baselines** | k6 profiles (smoke, load, stress, spike, soak) capped by `scope.yml`. Results per endpoint, automatic regression detection, and a defect opened on regression. JMeter results can be imported too. |
+| 🔌 **Standard formats** | Ingests SARIF (Semgrep, Gitleaks, Trivy, osv-scanner, Nuclei, CodeQL…), k6 JSON, JMeter JTL and JUnit. Exports an HTML/PDF report, CSV, and SARIF for GitHub code scanning. |
+| 🧾 **Traceability** | OWASP Top 10, OWASP API Top 10, CWE and ISO/IEC 27001:2022 Annex A on every finding, defect and test case. |
+| 🛡️ **Safe by default** | Allow-listed targets, a load cap and explicit authorization for active tests. Every active command lands in the audit log, secrets are masked, and reports contain only triaged data. |
 
-Cada skill está documentado en su propio `SKILL.md` dentro de `.claude/skills/`.
+## Quick start
 
-## Instalación en un proyecto objetivo
+### 1. See it with demo data (2 minutes)
 
 ```bash
-./install.sh /ruta/al/proyecto-objetivo
-cd /ruta/al/proyecto-objetivo
-cp scope.yml.example scope.yml   # edítalo: hosts permitidos, agresividad, autorización
-python3 tools/db/init_db.py --db-path findings.db
+git clone https://github.com/GonzaloAlarconRoldan/SecQA && cd SecQA
+docker compose -f examples/demo/docker-compose.yml up --build
 ```
 
-Luego, dentro de Claude Code abierto en ese proyecto:
+Open **http://127.0.0.1:8787**. The Hub comes preloaded with 12 weeks of history for OWASP Juice Shop, which runs alongside on `127.0.0.1:3000` as a live target.
 
-```
-/pentest-run
-```
-
-## Revisar hallazgos (dashboard)
+### 2. Use it on your project
 
 ```bash
-python3 tools/server/app.py --db-path findings.db --evidence-dir evidence
+pip install "secqa[hub] @ git+https://github.com/GonzaloAlarconRoldan/SecQA"
+
+secqa hub serve                                   # or: docker compose up -d
+secqa init /path/to/your-project --project SHOP   # installs skills, k6 kit, scope template
+cd /path/to/your-project
+secqa project create SHOP --name "Shop API"
+cp scope.yml.example scope.yml                    # allowed hosts, load caps, who authorizes
 ```
 
-Abre `http://127.0.0.1:8787/`. Incluye dashboard con gráficos (severidad, estado,
-tendencia por ejecución, categorías), switch ES/EN, filtros, y acciones de
-aprobar/rechazar/añadir hallazgo manual. Todo corre localmente — los datos no salen
-de la máquina.
+Then in Claude Code, inside that project:
 
-## Generar reportes
+```
+/pentest-run      full security pass
+/perf-test        load test against your local environment
+/pentest-report   triage & reports
+```
+
+## The Hub
+
+| Page | What you get |
+|---|---|
+| **Overview** | Open defects by severity, SLA breaches, MTTR, pending triage, pass rate, severity trend per run, weekly defect flow, p95 trend |
+| **Executions** | Every security, performance, functional and manual run with branch and commit. The detail page shows findings, test results, perf metrics vs. baseline and the audit log. |
+| **Findings** | Triage queue with filters (severity, source, new-only, untracked) and bulk actions; promote to defect |
+| **Defects** | Bugs, vulnerabilities, incidents and perf regressions. Table or kanban, SLA badges, comments, attachments, full history. |
+| **Test cases** | Repository with steps, expected results, OWASP/CWE/ISO links and last result; JUnit results link automatically |
+| **Performance** | p95/p99/avg, throughput and error-rate trends per scenario and endpoint, with the baseline marked |
+| **Compliance** | Coverage matrix for OWASP Top 10, OWASP API Top 10 and ISO 27001 Annex A |
+| **Reports** | Executive HTML/PDF report (EN/ES), defects CSV, findings SARIF |
+
+REST API with OpenAPI docs at `/api/docs`.
+
+## CLI at a glance
 
 ```bash
-# Global, solo lo aprobado
-python3 tools/report/generate_report.py
-
-# Por ejecución específica, con PDF
-python3 tools/report/generate_report.py --run-id 3 --pdf
-
-# Filtrado por severidad, en inglés
-python3 tools/report/generate_report.py --severity critical high --lang en
+secqa run start --kind security --target http://127.0.0.1:3000
+secqa ingest sarif semgrep.sarif --source sast
+secqa finding add --title "IDOR on basket" --severity high --category idor --endpoint "GET /rest/basket/{id}"
+secqa audit "nuclei -u http://127.0.0.1:3000" --target 127.0.0.1:3000
+secqa scope check http://127.0.0.1:3000 --profile load --vus 20
+secqa ingest k6 secqa-out/k6-summary.json --scenario load
+secqa run finish
 ```
 
-## Principios de seguridad del propio framework
+Full list: `secqa --help` and [`agent-kit/skills/pentest-run/reference/cli.md`](agent-kit/skills/pentest-run/reference/cli.md).
 
-- Ninguna fase activa (DAST, pruebas dinámicas de API) corre sin que `scope.yml` autorice
-  explícitamente el objetivo, y sin confirmación del usuario en la sesión.
-- Solo se prueban objetivos locales/contenedores propios — nunca producción ni terceros.
-- Toda acción activa queda registrada en `audit_log`.
-- Los secretos detectados se enmascaran antes de guardarse como evidencia o en el reporte.
-- El reporte compartible (`generate_report.py`) solo incluye hallazgos `approved`/`manual`
-  por defecto — nunca `pending` sin validar.
+## Repository layout
 
-## Requisitos
+```
+agent-kit/            copied into target projects by `secqa init`
+  skills/             Claude Code skills (pentest-* and perf-test)
+  perf/               k6 scenario + profiles, JMeter starter plan
+  scope.yml.example
+src/secqa/
+  cli.py              secqa CLI
+  scope.py            scope.yml enforcement
+  hub/                FastAPI app, models, migrations, parsers, services
+frontend/             React + TypeScript UI (built into the Hub)
+examples/             demo (Hub + Juice Shop), CI workflow
+docs/                 architecture, integrations, deployment
+```
 
-- Python 3.9+ (solo librería estándar para el dashboard y el runtime del framework).
-- Herramientas externas opcionales según lo que detecte recon: `semgrep`, `osv-scanner`,
-  `gitleaks`, `trivy`, `OWASP ZAP`, `nuclei`, `nmap`. El framework indica cuáles faltan
-  en vez de fallar silenciosamente.
-- Para export automático a PDF: un binario de Chrome/Chromium en el PATH (opcional,
-  si no está, se puede exportar manualmente desde el navegador).
+## Responsible use
 
-## Notas sobre ISO/IEC 27001
+SecQA drives real scanners and load generators. **Only test systems you own or are explicitly authorized to test.** Active phases need a `scope.yml` with the allowed targets and who authorized them. Load tests run only against local or self-owned hosts, capped at `max_vus`, and the heavy profiles need a fresh confirmation each time. See [SECURITY.md](SECURITY.md).
 
-El mapeo en `tools/mapping/iso_owasp_map.json` referencia IDs y títulos de controles del
-Anexo A de ISO/IEC 27001:2022 solo para trazabilidad — el texto completo de la norma es
-material con copyright y no se reproduce aquí. Si tu organización tiene licencia del
-estándar o un set de controles propio, extiende ese archivo.
+## Contributing
+
+PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Good first issues: new parsers, k6 scenarios, translations.
+
+## License
+
+[MIT](LICENSE) © Gonzalo Alarcón Roldán. OWASP item names are referenced under CC BY-SA. ISO/IEC 27001 is referenced by control ID and short title only; the standard's text is not included.

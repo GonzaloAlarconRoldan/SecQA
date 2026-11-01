@@ -1,0 +1,40 @@
+{
+  "_comment": "Item titles only (OWASP content is CC BY-SA). ISO/IEC 27001 controls are listed by ID + short title for traceability; the standard's text is copyrighted and not reproduced.",
+  "owasp-top10-2021": {
+    "A01:2021": "Broken Access Control",
+    "A02:2021": "Cryptographic Failures",
+    "A03:2021": "Injection",
+    "A04:2021": "Insecure Design",
+    "A05:2021": "Security Misconfiguration",
+    "A06:2021": "Vulnerable and Outdated Components",
+    "A07:2021": "Identification and Authentication Failures",
+    "A08:2021": "Software and Data Integrity Failures",
+    "A09:2021": "Security Logging and Monitoring Failures",
+    "A10:2021": "Server-Side Request Forgery"
+  },
+  "owasp-api-top10-2023": {
+    "API1:2023": "Broken Object Level Authorization",
+    "API2:2023": "Broken Authentication",
+    "API3:2023": "Broken Object Property Level Authorization",
+    "API4:2023": "Unrestricted Resource Consumption",
+    "API5:2023": "Broken Function Level Authorization",
+    "API6:2023": "Unrestricted Access to Sensitive Business Flows",
+    "API7:2023": "Server Side Request Forgery",
+    "API8:2023": "Security Misconfiguration",
+    "API9:2023": "Improper Inventory Management",
+    "API10:2023": "Unsafe Consumption of APIs"
+  },
+  "iso27001-2022-annex-a": {
+    "A.8.3": "Information access restriction",
+    "A.8.5": "Secure authentication",
+    "A.8.6": "Capacity management",
+    "A.8.8": "Management of technical vulnerabilities",
+    "A.8.9": "Configuration management",
+    "A.8.10": "Information deletion",
+    "A.8.15": "Logging",
+    "A.8.20": "Networks security",
+    "A.8.24": "Use of cryptography",
+    "A.8.28": "Secure coding",
+    "A.8.29": "Security testing in development and acceptance"
+  }
+}

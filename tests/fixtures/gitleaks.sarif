@@ -1,0 +1,3 @@
+{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "gitleaks", "rules": [{"id": "private-key", "shortDescription": {"text": "Private Key"}}]}},
+ "results": [{"ruleId": "private-key", "message": {"text": "private-key has detected secret for file lib/insecurity.ts."},
+   "locations": [{"physicalLocation": {"artifactLocation": {"uri": "lib/insecurity.ts"}, "region": {"startLine": 23, "snippet": {"text": "REDACTED"}}}}]}]}]}

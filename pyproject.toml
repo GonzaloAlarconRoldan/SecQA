@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "secqa"
+version = "2.0.0"
+description = "AI-assisted security & performance QA for Claude Code, with a central Hub for runs, test cases and defects."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Gonzalo Alarcón Roldán" }]
+keywords = ["security", "pentest", "qa", "performance", "k6", "jmeter", "sarif", "claude-code", "owasp"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Framework :: FastAPI",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Security",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Testing",
+]
+# The CLI only needs these two, so target projects stay lightweight.
+dependencies = ["httpx>=0.27", "pyyaml>=6.0"]
+
+[project.optional-dependencies]
+hub = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "sqlalchemy>=2.0.30",
+  "alembic>=1.13",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.3",
+  "python-multipart>=0.0.9",
+  "jinja2>=3.1",
+  "defusedxml>=0.7",
+]
+postgres = ["psycopg[binary]>=3.2"]
+dev = ["secqa[hub]", "pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.11", "types-PyYAML"]
+
+[project.scripts]
+secqa = "secqa.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/GonzaloAlarconRoldan/SecQA"
+Issues = "https://github.com/GonzaloAlarconRoldan/SecQA/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/secqa"]
+# The built SPA is git-ignored but must ship inside the wheel.
+artifacts = ["src/secqa/hub/static/**"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"agent-kit" = "secqa/agent_kit"
+
+[tool.hatch.build.targets.sdist]
+exclude = ["frontend/node_modules", ".secqa-data", "examples/demo/data"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["S101", "B008", "RUF012", "S608"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B"]
+"src/secqa/hub/migrations/*" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true

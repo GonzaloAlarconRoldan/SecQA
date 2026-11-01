@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="api" tests="3">
+    <testcase classname="auth" name="[SHOP-TC-1] rejects alg none" time="0.120"/>
+    <testcase classname="auth" name="rate limit on reset" time="1.5"><failure message="expected 429, got 200">trace</failure></testcase>
+    <testcase classname="misc" name="skipped one"><skipped/></testcase>
+  </testsuite>
+</testsuites>

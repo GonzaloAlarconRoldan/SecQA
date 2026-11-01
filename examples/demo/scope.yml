@@ -1,0 +1,18 @@
+# Scope for testing the local Juice Shop container from examples/demo.
+project_name: "juice-shop-demo"
+allowed_targets:
+  - host: "127.0.0.1"
+    ports: [3000]
+    note: "Juice Shop from examples/demo/docker-compose.yml"
+exclude_paths: ["node_modules/", "frontend/dist/"]
+dast_aggressiveness: "active-safe"
+performance:
+  enabled: true
+  max_vus: 30
+  max_duration: "5m"
+  allowed_profiles: [smoke, load]
+  thresholds:
+    p95_ms: 500
+    error_rate: 0.01
+authorized_by: "demo user (local container)"
+authorized_at: "2026-11-01"

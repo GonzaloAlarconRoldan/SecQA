@@ -1,0 +1,41 @@
+name: 🐛 Bug report
+description: Something in SecQA doesn't work as documented
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Hub API, Web UI, CLI, Parsers (SARIF/k6/JTL/JUnit), Agent skills, k6/JMeter kit, Docker, Docs]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. secqa run start --kind security
+        2. secqa ingest sarif report.sarif
+        3. ...
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "SecQA 2.0.0 · Python 3.12 · Docker / pip · macOS"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: ⚠️ Remove real findings, secrets, tokens and internal hostnames before pasting.

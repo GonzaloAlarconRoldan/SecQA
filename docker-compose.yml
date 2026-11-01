@@ -1,0 +1,22 @@
+# SecQA Hub — production-style single node.
+#   cp .env.example .env   # set SECQA_API_TOKEN
+#   docker compose up -d
+# For Postgres instead of SQLite, see docs/deployment.md.
+services:
+  hub:
+    build: .
+    image: secqa-hub:local
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      SECQA_DATA_DIR: /data
+    ports:
+      # loopback only by default; put a TLS reverse proxy in front to expose it to your team
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - secqa-data:/data
+
+volumes:
+  secqa-data:

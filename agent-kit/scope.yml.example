@@ -1,0 +1,41 @@
+# SecQA — authorized scope for this project.
+# Copy to scope.yml (git-ignored) and fill it in BEFORE any active phase (dynamic API tests,
+# DAST, load tests). `secqa scope check` refuses anything that is not listed here.
+
+project_name: "my-project"
+
+# Hosts/ports where active testing IS allowed. Local machines / your own containers only.
+# Never public domains, shared staging or production.
+allowed_targets:
+  - host: "127.0.0.1"
+    ports: [3000, 8000]
+    note: "local environment started with docker compose"
+  # - host: "juice-shop"          # a container on a dedicated Docker network
+  #   ports: [3000]
+
+# Paths excluded from SAST/SCA (vendored or generated code)
+exclude_paths:
+  - "node_modules/"
+  - "dist/"
+  - "vendor/"
+
+# Dynamic testing aggressiveness:
+#   passive           observe only, no payloads
+#   active-safe       non-destructive payloads (default)
+#   active-aggressive requires an extra explicit confirmation from the user on every run
+dast_aggressiveness: "active-safe"
+
+# Load / performance testing (perf-test skill)
+performance:
+  enabled: false              # opt-in
+  max_vus: 50                 # hard cap on concurrent virtual users
+  max_duration: "10m"
+  allowed_profiles: [smoke, load]   # add stress / spike / soak only if you mean it —
+                                    # they still need an explicit confirmation per session
+  thresholds:
+    p95_ms: 500
+    error_rate: 0.01
+
+# Explicit authorization — required for every active phase.
+authorized_by: ""        # who authorizes
+authorized_at: ""        # ISO date
