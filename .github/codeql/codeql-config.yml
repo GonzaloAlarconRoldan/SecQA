@@ -1,0 +1,6 @@
+name: SecQA CodeQL config
+paths-ignore:
+  # Deliberately vulnerable training app — its SQLi/MD5 are the point.
+  - examples/vuln-lab
+  # Test doubles (mock HTTP handlers, fixtures)
+  - tests

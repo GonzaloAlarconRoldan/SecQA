@@ -245,3 +245,9 @@ def test_filter_findings_and_defects_by_owasp_and_iso(client, project):
     client.post("/api/projects/SHOP/defects/from-findings", json={"finding_ids": [fid]})
     assert client.get("/api/defects", params={"owasp_id": "A03:2021"}).json()["total"] == 1
     assert client.get("/api/defects", params={"iso_control": "A.8.3"}).json()["total"] == 0
+
+
+def test_spa_static_handler_never_serves_outside_bundle(client):
+    for path in ("/../../pyproject.toml", "/%2e%2e/%2e%2e/%2e%2e/pyproject.toml", "/..%2f..%2f..%2fpyproject.toml"):
+        res = client.get(path)
+        assert b"[project]" not in res.content, path
