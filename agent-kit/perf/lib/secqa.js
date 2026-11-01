@@ -9,6 +9,7 @@
 //   P95_MS     latency threshold                            (default: 500)
 //   ERROR_RATE max failed-request ratio                     (default: 0.01)
 //   SUMMARY    output path                                  (default: secqa-out/k6-summary.json)
+//              k6 cannot create directories: run `mkdir -p secqa-out` first (`secqa init` creates it).
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.1.0/index.js';
 
 export function env(name, fallback) {
@@ -24,7 +25,11 @@ export function profileStages(profile, vus, duration) {
   const cap = (n) => Math.max(1, Math.min(n, maxVus || n));
   switch (profile) {
     case 'smoke':
-      return [{ duration: '30s', target: 1 }];
+      // ramp instantly to 1 VU, then hold — a single 0→1 ramp would only start the VU at the end
+      return [
+        { duration: '1s', target: 1 },
+        { duration: '30s', target: 1 },
+      ];
     case 'load':
       return [
         { duration: '30s', target: cap(vus) },

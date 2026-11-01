@@ -162,6 +162,7 @@ def cmd_init(args) -> None:
         shutil.copy(kit_path / "scope.yml.example", target / "scope.yml.example")
         print("[ok]   scope.yml.example  → copy to scope.yml and fill it in")
 
+    (target / "secqa-out").mkdir(exist_ok=True)  # k6 handleSummary cannot create directories
     state = target / ".secqa"
     state.mkdir(exist_ok=True)
     cfg = {"hub_url": args.url or DEFAULT_URL}
@@ -177,7 +178,9 @@ def cmd_init(args) -> None:
         gitignore.write_text(existing + rules, "utf-8")
     print(f"[ok]   .secqa/config.yml → hub {cfg['hub_url']}"
           + (f", project {cfg['project']}" if "project" in cfg else ""))
-    print("\nNext: create scope.yml, make sure the Hub is running, then in Claude Code run /pentest-run")
+    print("\nNext:\n  secqa doctor --install     # install the scanners SecQA drives (asks first)\n"
+          "  cp scope.yml.example scope.yml && edit it\n"
+          "  in Claude Code: /secqa-setup, then /pentest-run or /perf-test")
 
 
 def cmd_status(args) -> None:
@@ -239,16 +242,58 @@ def cmd_run_update(args) -> None:
     _out(args, run, f"updated run #{run['id']}")
 
 
+def relativize_sarif(doc: dict[str, Any], root: Path) -> int:
+    """Rewrite absolute artifact URIs under `root` as repo-relative paths, in place.
+
+    Scanners such as osv-scanner emit `file:///home/me/...`; uploading those would leak local
+    usernames/directory layouts to the Hub and break de-duplication between machines.
+    """
+    root = root.resolve()
+    changed = 0
+
+    def visit(node: Any) -> None:
+        nonlocal changed
+        if isinstance(node, dict):
+            uri = node.get("uri")
+            if isinstance(uri, str) and "artifactLocation" not in node:
+                raw = uri[len("file://"):] if uri.startswith("file://") else uri
+                if raw.startswith("/"):
+                    p = Path(raw)
+                    try:
+                        node["uri"] = p.resolve().relative_to(root).as_posix()
+                        changed += 1
+                    except ValueError:
+                        node["uri"] = p.name  # outside the repo: keep only the file name
+                        changed += 1
+            for v in node.values():
+                visit(v)
+        elif isinstance(node, list):
+            for v in node:
+                visit(v)
+
+    visit(doc)
+    return changed
+
+
 def cmd_ingest(args) -> None:
     path = Path(args.file)
     if not path.is_file():
         raise CLIError(f"{path} not found")
+    payload: bytes | None = None
+    if args.format == "sarif":
+        try:
+            doc = json.loads(path.read_text("utf-8"))
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise CLIError(f"{path} is not valid JSON: {exc}") from exc
+        root = Path(_git("rev-parse", "--show-toplevel") or ".")
+        if relativize_sarif(doc, root):
+            payload = json.dumps(doc).encode("utf-8")
     params = {"scenario": args.scenario, "create_defects": str(not args.no_defects).lower()}
     if args.source:
         params["source"] = args.source
-    with path.open("rb") as fh:
-        res = _call(args, "POST", f"/api/runs/{_run_id(args)}/ingest/{args.format}", params=params,
-                    files={"file": (path.name, fh)})
+    content = payload if payload is not None else path.read_bytes()
+    res = _call(args, "POST", f"/api/runs/{_run_id(args)}/ingest/{args.format}", params=params,
+                files={"file": (path.name, content)})
     extra = f" {res['detail']}" if res.get("detail") else ""
     _out(args, res, f"{args.format}: {res['created']} created, {res['suppressed']} auto-suppressed, "
                     f"{res['skipped']} duplicates{extra}")
@@ -304,6 +349,68 @@ def cmd_scope_show(args) -> None:
         "authorized_by": scope.authorized_by, "allowed_targets": scope.allowed_targets,
         "dast_aggressiveness": scope.dast_aggressiveness, "performance": scope.perf.__dict__,
     })
+
+
+def cmd_doctor(args) -> None:
+    from .tools import TOOLS, available_managers, check_tools, run_install
+
+    wanted = set(args.only.split(",")) if args.only else None
+    tools = tuple(t for t in TOOLS if (wanted is None and (args.all or t.tier == "core"))
+                  or (wanted is not None and t.name in wanted))
+    if wanted and len(tools) != len(wanted):
+        unknown = wanted - {t.name for t in TOOLS}
+        raise CLIError(f"unknown tool(s): {', '.join(sorted(unknown))} — known: {', '.join(t.name for t in TOOLS)}")
+    statuses = check_tools(tools)
+    managers = available_managers()
+
+    if args.json:
+        _out(args, {"package_managers": managers, "tools": [{
+            "name": s.tool.name, "tier": s.tool.tier, "skill": s.tool.skill, "purpose": s.tool.purpose,
+            "installed": s.installed, "path": s.path, "version": s.version,
+            "install_cmd": " ".join(s.install_cmd) if s.install_cmd else None, "docs": s.tool.docs,
+        } for s in statuses]})
+    else:
+        print(f"Package managers found: {', '.join(managers) or 'none'}\n")
+        for s in statuses:
+            mark = "✓" if s.installed else "✗"
+            detail = s.version or "" if s.installed else (" ".join(s.install_cmd) if s.install_cmd
+                                                          else f"manual install: {s.tool.docs}")
+            print(f"  {mark} {s.tool.name:12} {s.tool.tier:8} {s.tool.purpose[:52]:52}  {detail}")
+
+    missing = [s for s in statuses if not s.installed]
+    if not missing:
+        if not args.json:
+            print("\nAll selected tools are installed.")
+        return
+    if not args.install:
+        if not args.json:
+            print(f"\n{len(missing)} missing. Install them with: secqa doctor --install"
+                  + (" --all" if args.all else ""))
+        return
+
+    installable = [s for s in missing if s.install_cmd]
+    manual = [s for s in missing if not s.install_cmd]
+    if installable:
+        print("\nWill run:")
+        for s in installable:
+            print(f"  $ {' '.join(s.install_cmd or ())}")
+        if not args.yes:
+            if not sys.stdin.isatty():
+                raise CLIError("refusing to install without confirmation — re-run with --yes")
+            if input("Proceed? [y/N] ").strip().lower() not in ("y", "yes"):
+                raise CLIError("installation cancelled")
+        failed = [s.tool.name for s in installable if not run_install(s.install_cmd or ())]
+        ok = check_tools(tuple(s.tool for s in installable))
+        still_missing = [s.tool.name for s in ok if not s.installed]
+        if "go" in managers and still_missing:
+            print("[secqa] tools installed with `go install` live in $(go env GOPATH)/bin — add it to PATH.")
+        if failed or still_missing:
+            raise CLIError(f"could not install: {', '.join(sorted(set(failed + still_missing)))}")
+        print("\n[ok] installed: " + ", ".join(s.tool.name for s in installable))
+    for s in manual:
+        print(f"[manual] {s.tool.name}: no supported package manager found — see {s.tool.docs}")
+    if manual and any(s.tool.tier == "core" for s in manual):
+        raise CLIError("some core tools still need a manual install")
 
 
 def cmd_demo_seed(args) -> None:
@@ -428,6 +535,13 @@ def build_parser() -> argparse.ArgumentParser:
     s = scope.add_parser("show")
     s.add_argument("--scope", default="scope.yml")
     s.set_defaults(func=cmd_scope_show)
+
+    s = sub.add_parser("doctor", help="check (and optionally install) the scanners SecQA uses")
+    s.add_argument("--install", action="store_true", help="install missing tools with the system package manager")
+    s.add_argument("--yes", "-y", action="store_true", help="don't ask for confirmation")
+    s.add_argument("--all", action="store_true", help="include optional tools (trivy, nuclei, zap, jmeter)")
+    s.add_argument("--only", help="comma-separated tool names, e.g. k6,semgrep")
+    s.set_defaults(func=cmd_doctor)
 
     demo = sub.add_parser("demo", help="demo data").add_subparsers(dest="sub", required=True)
     s = demo.add_parser("seed", help="load a realistic Juice Shop dataset into the Hub database")

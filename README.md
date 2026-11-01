@@ -31,7 +31,7 @@ SecQA turns Claude Code into a security and performance tester for any repositor
 
 | | |
 |---|---|
-| 🧭 **Stack-aware agent skills** | Nine Claude Code skills that pick tools based on what recon finds, and stop when something is out of scope. |
+| 🧭 **Stack-aware agent skills** | Ten Claude Code skills that pick tools based on what recon finds, and stop when something is out of scope. |
 | 🗂️ **Central Hub** | Multi-project web app: executions, findings triage, defect tracker (table + kanban), test-case repository, performance trends, compliance matrix. |
 | 🔁 **Remembers decisions** | Findings are fingerprinted. False positives stay suppressed in later runs, and a defect reopens by itself if its finding comes back. |
 | ⏱️ **SLA & MTTR** | Due dates by severity, breach tracking, opened-vs-resolved flow, mean time to resolve. |
@@ -57,6 +57,7 @@ Open **http://127.0.0.1:8787**. The Hub comes preloaded with 12 weeks of history
 pip install "secqa[hub] @ git+https://github.com/GonzaloAlarconRoldan/SecQA"
 
 secqa hub serve                                   # or: docker compose up -d
+secqa doctor --install                            # installs semgrep, gitleaks, osv-scanner, k6 (asks first)
 secqa init /path/to/your-project --project SHOP   # installs skills, k6 kit, scope template
 cd /path/to/your-project
 secqa project create SHOP --name "Shop API"
@@ -66,6 +67,7 @@ cp scope.yml.example scope.yml                    # allowed hosts, load caps, wh
 Then in Claude Code, inside that project:
 
 ```
+/secqa-setup      checks tools, Hub, project and scope (installs what's missing, with your OK)
 /pentest-run      full security pass
 /perf-test        load test against your local environment
 /pentest-report   triage & reports

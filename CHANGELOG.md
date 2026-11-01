@@ -5,6 +5,7 @@ All notable changes to this project are documented here. Format based on [Keep a
 ## [2.0.0] - 2026-11-01
 
 ### Added
+- `secqa doctor` (detect / install the external scanners via brew, winget, scoop, pipx or go — always asks first) and the `secqa-setup` skill that prepares tools, Hub, project and scope.
 - **SecQA Hub**: multi-project FastAPI + React web app with:
   - overview KPIs (open defects, SLA breaches, MTTR, pass rate),
   - executions, findings triage with bulk actions,

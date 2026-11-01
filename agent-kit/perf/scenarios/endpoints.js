@@ -1,6 +1,7 @@
 // Data-driven HTTP load test. Endpoints come from perf/endpoints.json (the perf-test skill
 // generates it from recon's perf_candidates); thresholds and profile come from env vars.
 //
+//   mkdir -p secqa-out
 //   k6 run -e BASE_URL=http://127.0.0.1:3000 -e PROFILE=load -e VUS=20 -e MAX_VUS=50 perf/scenarios/endpoints.js
 //   secqa ingest k6 secqa-out/k6-summary.json --scenario load
 import http from 'k6/http';

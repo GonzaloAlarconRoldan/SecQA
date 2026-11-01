@@ -12,6 +12,7 @@
 ```bash
 secqa scope check http://127.0.0.1:3000 --profile load --vus 20   # gate: exits 1 if not allowed
 secqa run start --kind performance --name "Load — release 1.4" --target http://127.0.0.1:3000
+mkdir -p secqa-out
 k6 run -e BASE_URL=http://127.0.0.1:3000 -e PROFILE=load -e VUS=20 -e MAX_VUS=50 \
        perf/scenarios/endpoints.js
 secqa ingest k6 secqa-out/k6-summary.json --scenario load
