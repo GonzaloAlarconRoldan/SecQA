@@ -1,8 +1,15 @@
 <div align="center">
 
-# SecQA
+# 🛡️ SecQA
 
-**QA de seguridad y performance asistido por IA para Claude Code, con un Hub central de ejecuciones, casos de prueba y defectos.**
+### Tu pentester y tester de performance con IA, con un gestor de defectos de verdad detrás
+
+SecQA convierte **Claude Code** en un ingeniero de QA de seguridad y performance para cualquier repositorio.<br>
+Encuentra las vulnerabilidades, las demuestra con capturas, hace pruebas de carga y sigue cada problema hasta cerrarlo en un Hub propio.
+
+[![CI](https://github.com/GonzaloAlarconRoldan/SecQA/actions/workflows/ci.yml/badge.svg)](https://github.com/GonzaloAlarconRoldan/SecQA/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/GonzaloAlarconRoldan/SecQA?style=social)](https://github.com/GonzaloAlarconRoldan/SecQA/stargazers)
 
 [English](README.md) · [Arquitectura](docs/architecture.md) · [Integraciones](docs/integrations.md) · [Despliegue](docs/deployment.md)
 
@@ -10,7 +17,20 @@
 
 </div>
 
-SecQA convierte a Claude Code en un tester de seguridad y performance para cualquier repositorio. Detecta el stack, corre los escáneres adecuados (SAST, SCA, secretos, API, DAST) y pruebas de carga con k6. Todo lo que encuentra llega al **SecQA Hub**, donde las personas hacen el triage, gestionan defectos con SLA y siguen las tendencias entre ejecuciones.
+## ¿Por qué SecQA?
+
+Correr un escáner es fácil. **Lo difícil es todo lo demás**:
+- elegir las herramientas adecuadas para cada stack;
+- saber cuáles de 300 alertas importan hoy;
+- demostrarle el problema a quien lo tiene que arreglar;
+- asegurarse de que no vuelva.
+
+SecQA cubre todo ese ciclo. Así resume una ejecución:
+
+> **2 vulnerabilidades explotadas activamente (CISA KEV):** `log4j-core@2.14.1` → actualizar a **2.15.0**.<br>
+> **SQL injection en `POST /login`:** capturas de antes y después muestran el acceso como admin con `' OR 1=1--`.<br>
+> **IDOR:** con la misma sesión, cambiar `?id=2` por `?id=3` muestra la dirección de otro cliente (enmascarada en la evidencia).<br>
+> **Performance:** el p95 de `GET /search` subió un 88 % frente al baseline, así que se abrió un defecto de regresión automáticamente.
 
 ## Qué incluye
 
@@ -33,7 +53,17 @@ SecQA convierte a Claude Code en un tester de seguridad y performance para cualq
 
 ## Inicio rápido
 
-### Demo (2 minutos)
+### Pruébalo en 60 segundos, sin Docker
+
+```bash
+git clone https://github.com/GonzaloAlarconRoldan/SecQA && cd SecQA
+pip install -e ".[hub]"
+secqa demo seed && secqa hub serve   # → http://127.0.0.1:8787 con 12 semanas de datos realistas
+```
+
+Para probar un ataque real, `python examples/vuln-lab/app.py` levanta una tienda pequeña y vulnerable a propósito en `127.0.0.1:5055`.
+
+### Demo con Docker (2 minutos)
 
 ```bash
 git clone https://github.com/GonzaloAlarconRoldan/SecQA && cd SecQA
@@ -63,3 +93,11 @@ Prueba **solo** sistemas propios o para los que tengas autorización explícita.
 ## Licencia
 
 [MIT](LICENSE) © Gonzalo Alarcón Roldán
+
+---
+
+<div align="center">
+
+Si SecQA te ahorra tiempo, dale una ⭐ al repo: ayuda a que otros ingenieros de QA y seguridad lo encuentren.
+
+</div>
