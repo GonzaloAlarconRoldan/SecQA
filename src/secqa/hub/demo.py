@@ -174,7 +174,7 @@ def _seed(db: Session, settings: Settings, key: str) -> None:
                         description=f"{title}. Detected by {tool} during {source.upper()} phase.",
                         evidence=_evidence(cat, endpoint), remediation=_remediation(cat),
                         line_end=line, **data)
-            if idx == 9 and r >= 1:
+            if idx == 9:
                 f.triage_status = TriageStatus.accepted_risk
                 f.reviewed_by, f.reviewed_at = "maria.lopez", started
                 f.review_comment = "CSP rollout planned for Q1; risk accepted until then."

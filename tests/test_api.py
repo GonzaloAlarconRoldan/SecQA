@@ -231,3 +231,17 @@ def test_audit_log(client, project):
                                                    "target": "127.0.0.1:3000", "run_id": run["id"]})
     log = client.get("/api/projects/SHOP/audit", params={"run_id": run["id"]}).json()
     assert any(e["action"].startswith("nuclei") and e["actor"] == "human:tester" for e in log)
+
+
+def test_filter_findings_and_defects_by_owasp_and_iso(client, project):
+    run = start_run(client)
+    client.post(f"/api/runs/{run['id']}/findings",
+                json=[SQLI, {**SQLI, "title": "IDOR", "category": "idor", "severity": "high", "line_start": 2}])
+    by_owasp = client.get("/api/findings", params={"project": "SHOP", "owasp_id": "A01:2021"}).json()
+    assert [f["category"] for f in by_owasp["items"]] == ["idor"]
+    by_iso = client.get("/api/findings", params={"project": "SHOP", "iso_control": "A.8.28"}).json()
+    assert [f["category"] for f in by_iso["items"]] == ["sql-injection"]
+    fid = by_iso["items"][0]["id"]
+    client.post("/api/projects/SHOP/defects/from-findings", json={"finding_ids": [fid]})
+    assert client.get("/api/defects", params={"owasp_id": "A03:2021"}).json()["total"] == 1
+    assert client.get("/api/defects", params={"iso_control": "A.8.3"}).json()["total"] == 0

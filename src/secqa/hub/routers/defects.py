@@ -68,6 +68,8 @@ def list_defects(
     kind: DefectKind | None = None,
     priority: Priority | None = None,
     assignee: str | None = None,
+    owasp_id: str | None = None,
+    iso_control: str | None = None,
     q: str | None = None,
     open_only: bool = False,
     sla_breached: bool = False,
@@ -91,6 +93,10 @@ def list_defects(
         stmt = stmt.where(Defect.priority == priority)
     if assignee:
         stmt = stmt.where(Defect.assignee == assignee)
+    if owasp_id:
+        stmt = stmt.where(Defect.owasp_id == owasp_id)
+    if iso_control:
+        stmt = stmt.where(Defect.iso_control == iso_control)
     if q:
         like = f"%{q}%"
         stmt = stmt.where(or_(Defect.title.ilike(like), Defect.key.ilike(like), Defect.description.ilike(like)))
