@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [{
+    "tool": {"driver": {"name": "Semgrep OSS", "rules": [
+      {"id": "javascript.sequelize.security.audit.sequelize-injection-express",
+       "shortDescription": {"text": "Detected a sequelize statement that is tainted by user-input."},
+       "help": {"text": "Use parameterized queries (replacements)."},
+       "defaultConfiguration": {"level": "error"},
+       "properties": {"security-severity": "9.1", "tags": ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command", "OWASP-A03:2021"]}},
+      {"id": "javascript.express.security.audit.xss.direct-response-write",
+       "shortDescription": {"text": "Direct response write of user input"},
+       "defaultConfiguration": {"level": "warning"},
+       "properties": {"tags": ["CWE-79: Cross-site Scripting"]}}
+    ]}},
+    "results": [
+      {"ruleId": "javascript.sequelize.security.audit.sequelize-injection-express", "level": "error",
+       "message": {"text": "User input flows into a raw SQL query."},
+       "locations": [{"physicalLocation": {"artifactLocation": {"uri": "routes/login.ts"}, "region": {"startLine": 34, "endLine": 36, "snippet": {"text": "models.sequelize.query(`SELECT * FROM Users WHERE email = '${req.body.email}'`)"}}}}],
+       "partialFingerprints": {"primaryLocationLineHash": "abc123"}},
+      {"ruleId": "javascript.express.security.audit.xss.direct-response-write", "level": "warning",
+       "message": {"text": "res.send() with user input."},
+       "locations": [{"physicalLocation": {"artifactLocation": {"uri": "routes/search.ts"}, "region": {"startLine": 12}}}]}
+    ]
+  }]
+}

@@ -1,0 +1,23 @@
+# SecQA demo: the Hub preloaded with 12 weeks of history + OWASP Juice Shop as a live target.
+#   docker compose -f examples/demo/docker-compose.yml up --build
+#   Hub:        http://127.0.0.1:8787
+#   Juice Shop: http://127.0.0.1:3000   (deliberately vulnerable — keep it on loopback)
+name: secqa-demo
+services:
+  hub:
+    build: ../..
+    image: secqa-hub:local
+    environment:
+      SECQA_DEMO_SEED: "1"
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - demo-data:/data
+
+  juice-shop:
+    image: bkimminich/juice-shop:v17.1.1
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  demo-data:

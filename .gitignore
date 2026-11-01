@@ -1,10 +1,33 @@
-findings.db
-scope.yml
-evidence/
-report_*.html
-report_*.pdf
-*.pyc
+# Python
 __pycache__/
-semgrep_results.json
-gitleaks_results.json
-zap_report.json
+*.py[cod]
+.venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / UI build (the SPA is built into the Python package at release time)
+frontend/node_modules/
+frontend/dist/
+src/secqa/hub/static/
+
+# SecQA runtime data — never commit findings, scopes or databases
+.secqa-data/
+.secqa/current-run
+secqa-out/
+scope.yml
+!examples/demo/scope.yml
+*.db
+*.db-wal
+*.db-shm
+.env
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

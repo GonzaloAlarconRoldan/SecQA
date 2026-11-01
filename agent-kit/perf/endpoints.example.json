@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy to perf/endpoints.json. Names become per-endpoint rows in the Hub — keep them stable across runs so baselines compare.",
+  "base_url": "http://127.0.0.1:3000",
+  "thresholds": { "p95_ms": 500, "error_rate": 0.01 },
+  "auth": {
+    "path": "/rest/user/login",
+    "body": { "email": "perf-user@example.test", "password": "perf-user-password" },
+    "token_json_path": "authentication.token"
+  },
+  "requests": [
+    { "name": "GET /rest/products/search", "method": "GET", "path": "/rest/products/search?q=apple", "weight": 5 },
+    { "name": "GET /api/Products", "method": "GET", "path": "/api/Products", "weight": 3 },
+    { "name": "GET /rest/basket/{id}", "method": "GET", "path": "/rest/basket/1", "weight": 2 }
+  ]
+}

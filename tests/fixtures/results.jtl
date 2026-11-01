@@ -1,0 +1,5 @@
+timeStamp,elapsed,label,responseCode,responseMessage,threadName,dataType,success,failureMessage,bytes,sentBytes,grpThreads,allThreads,URL,Latency,IdleTime,Connect
+1700000000000,100,GET /api/items,200,OK,Users 1-1,text,true,,512,120,2,2,http://127.0.0.1:3000/api/items,90,0,3
+1700000000500,200,GET /api/items,200,OK,Users 1-2,text,true,,512,120,2,2,http://127.0.0.1:3000/api/items,180,0,3
+1700000001000,300,POST /login,500,Internal,Users 1-1,text,false,boom,100,200,2,2,http://127.0.0.1:3000/login,290,0,3
+1700000001500,400,POST /login,200,OK,Users 1-2,text,true,,100,200,2,2,http://127.0.0.1:3000/login,390,0,3

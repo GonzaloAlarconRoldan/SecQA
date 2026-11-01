@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ project.key }} — {{ t.title }}</title>
+<style>
+  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#ffffff; --soft:#f8fafc;
+          --critical:#b91c1c; --high:#ea580c; --medium:#ca8a04; --low:#2563eb; --info:#64748b; --ok:#15803d; }
+  * { box-sizing:border-box; }
+  body { font:14px/1.55 -apple-system, "Segoe UI", Inter, Roboto, sans-serif; color:var(--ink); background:var(--bg);
+         margin:0; padding:40px 48px; max-width:1100px; margin-inline:auto; }
+  header { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid var(--ink);
+           padding-bottom:16px; margin-bottom:28px; gap:24px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:26px; letter-spacing:-.02em; }
+  header .meta { color:var(--muted); font-size:12px; text-align:right; }
+  .tag { display:inline-block; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  h2 { font-size:17px; margin:36px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; }
+  .kpi { border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:var(--soft); }
+  .kpi b { display:block; font-size:24px; font-variant-numeric:tabular-nums; }
+  .kpi span { font-size:12px; color:var(--muted); }
+  .sev { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:600;
+         color:#fff; text-transform:uppercase; letter-spacing:.04em; }
+  .sev-critical{background:var(--critical)} .sev-high{background:var(--high)} .sev-medium{background:var(--medium)}
+  .sev-low{background:var(--low)} .sev-info{background:var(--info)}
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; }
+  td.num { font-variant-numeric:tabular-nums; text-align:right; }
+  .card { border:1px solid var(--line); border-left:4px solid var(--info); border-radius:6px; padding:14px 16px;
+          margin-bottom:12px; page-break-inside:avoid; }
+  .card.critical{border-left-color:var(--critical)} .card.high{border-left-color:var(--high)}
+  .card.medium{border-left-color:var(--medium)} .card.low{border-left-color:var(--low)}
+  .card h3 { margin:0 0 6px; font-size:15px; }
+  .card .row { color:var(--muted); font-size:12px; display:flex; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
+  .card p { margin:6px 0; white-space:pre-wrap; }
+  code { font:12px ui-monospace, SFMono-Regular, Menlo, monospace; background:var(--soft); padding:1px 4px; border-radius:4px; }
+  .breach { color:var(--critical); font-weight:600; }
+  .empty { color:var(--muted); font-style:italic; }
+  footer { margin-top:48px; color:var(--muted); font-size:11px; border-top:1px solid var(--line); padding-top:12px;
+           display:flex; justify-content:space-between; }
+  .print-btn { position:fixed; right:20px; bottom:20px; padding:10px 16px; border-radius:8px; border:0;
+               background:var(--ink); color:#fff; font-weight:600; cursor:pointer; }
+  @media print { body { padding:0; } .print-btn { display:none; } h2 { page-break-after:avoid; } }
+  @page { margin:16mm 14mm; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <span class="tag">{{ t.confidential }} · SecQA</span>
+    <h1>{{ t.title }}</h1>
+    <div><b>{{ project.name }}</b> <code>{{ project.key }}</code>{% if run_id %} · Run #{{ run_id }}{% endif %}</div>
+  </div>
+  <div class="meta">{{ t.generated }}: {{ generated_at }}<br>SecQA v{{ version }}</div>
+</header>
+
+<h2>{{ t.summary }}</h2>
+<div class="kpis">
+  <div class="kpi"><b>{{ defects|length }}</b><span>{{ t.open }}</span></div>
+  {% for s in ["critical","high","medium","low"] %}
+  <div class="kpi"><b>{{ sev_counts[s] }}</b><span><span class="sev sev-{{ s }}">{{ s }}</span></span></div>
+  {% endfor %}
+  <div class="kpi"><b class="{{ 'breach' if breached else '' }}">{{ breached }}</b><span>{{ t.breached }}</span></div>
+</div>
+
+<h2>{{ t.defects }}</h2>
+{% for d in defects %}
+<div class="card {{ d.severity.value }}">
+  <h3><code>{{ d.key }}</code> {{ d.title }}</h3>
+  <div class="row">
+    <span class="sev sev-{{ d.severity.value }}">{{ d.severity.value }}</span>
+    <span>{{ d.priority.value }}</span>
+    <span>{{ t.status }}: <b>{{ d.status.value }}</b></span>
+    <span>{{ d.kind.value }}</span>
+    {% if d.owasp_id %}<span>{{ d.owasp_id }}</span>{% endif %}
+    {% if d.cwe_id %}<span>{{ d.cwe_id }}</span>{% endif %}
+    {% if d.iso_control %}<span>ISO {{ d.iso_control }}</span>{% endif %}
+    {% if d.assignee %}<span>@{{ d.assignee }}</span>{% endif %}
+    {% if d.due_at %}<span class="{{ 'breach' if d.sla_breached else '' }}">SLA {{ d.due_at.strftime('%Y-%m-%d') }}</span>{% endif %}
+  </div>
+  {% if d.description %}<p>{{ d.description }}</p>{% endif %}
+</div>
+{% else %}<p class="empty">{{ t.none }}</p>{% endfor %}
+
+<h2>{{ t.findings }}</h2>
+{% if findings %}
+<table>
+  <thead><tr><th>#</th><th>{{ t.severity }}</th><th>Title</th><th>{{ t.location }}</th><th>Ref.</th></tr></thead>
+  <tbody>
+  {% for f in findings %}
+  <tr>
+    <td>{{ f.id }}</td>
+    <td><span class="sev sev-{{ f.severity.value }}">{{ f.severity.value }}</span></td>
+    <td>{{ f.title }}{% if f.remediation %}<br><small>{{ t.remediation }}: {{ f.remediation | truncate(240) }}</small>{% endif %}</td>
+    <td><code>{{ f.endpoint or ((f.file_path or '') ~ (':' ~ f.line_start if f.line_start else '')) }}</code></td>
+    <td>{{ f.owasp_id or '' }} {{ f.cwe_id or '' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="empty">{{ t.none }}</p>{% endif %}
+
+{% if perf_runs %}
+<h2>{{ t.perf }}</h2>
+<table>
+  <thead><tr><th>Run</th><th>Status</th><th class="num">{{ t.p95 }}</th><th class="num">p99</th>
+  <th class="num">{{ t.rps }}</th><th class="num">{{ t.errors }}</th><th class="num">VUs</th></tr></thead>
+  <tbody>
+  {% for r in perf_runs %}{% for m in perf[r.id] %}
+  <tr>
+    <td>#{{ r.id }} {{ r.name or '' }} <small>({{ m.scenario }}){% if r.is_baseline %} · baseline{% endif %}</small></td>
+    <td>{{ r.status.value }}</td>
+    <td class="num">{{ '%.0f'|format(m.p95_ms) if m.p95_ms is not none else '—' }} ms</td>
+    <td class="num">{{ '%.0f'|format(m.p99_ms) if m.p99_ms is not none else '—' }} ms</td>
+    <td class="num">{{ '%.1f'|format(m.rps) if m.rps is not none else '—' }}/s</td>
+    <td class="num">{{ '%.2f'|format(m.error_rate * 100) }}%</td>
+    <td class="num">{{ m.vus_max or '—' }}</td>
+  </tr>
+  {% endfor %}{% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2>{{ t.runs }}</h2>
+<table>
+  <thead><tr><th>#</th><th>Kind</th><th>{{ t.status }}</th><th>Target</th><th>Branch</th><th>Started</th></tr></thead>
+  <tbody>
+  {% for r in runs %}
+  <tr><td>{{ r.id }}</td><td>{{ r.kind.value }}</td><td>{{ r.status.value }}</td>
+      <td><code>{{ r.target or '' }}</code></td><td>{{ r.branch or '' }}{% if r.commit_sha %} <code>{{ r.commit_sha[:8] }}</code>{% endif %}</td>
+      <td>{{ r.started_at.strftime('%Y-%m-%d %H:%M') }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<footer><span>SecQA · {{ project.key }}</span><span>{{ generated_at }}</span></footer>
+<button class="print-btn" onclick="window.print()">PDF</button>
+</body>
+</html>
