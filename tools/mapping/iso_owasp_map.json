@@ -1,0 +1,129 @@
+{
+  "_comment": "Maps internal finding categories to OWASP Top 10 (2021), CWE, and ISO/IEC 27001:2022 Annex A control references. ISO/IEC texts are copyrighted and NOT reproduced here — only control IDs/titles are cited for traceability. Extend this file with your org's own control set if needed.",
+  "sql-injection": {
+    "owasp_id": "A03:2021",
+    "owasp_name": "Injection",
+    "cwe_id": "CWE-89",
+    "iso_control": "A.8.28",
+    "iso_control_name": "Secure coding"
+  },
+  "command-injection": {
+    "owasp_id": "A03:2021",
+    "owasp_name": "Injection",
+    "cwe_id": "CWE-78",
+    "iso_control": "A.8.28",
+    "iso_control_name": "Secure coding"
+  },
+  "xss": {
+    "owasp_id": "A03:2021",
+    "owasp_name": "Injection",
+    "cwe_id": "CWE-79",
+    "iso_control": "A.8.28",
+    "iso_control_name": "Secure coding"
+  },
+  "ssrf": {
+    "owasp_id": "A10:2021",
+    "owasp_name": "Server-Side Request Forgery",
+    "cwe_id": "CWE-918",
+    "iso_control": "A.8.28",
+    "iso_control_name": "Secure coding"
+  },
+  "idor": {
+    "owasp_id": "A01:2021",
+    "owasp_name": "Broken Access Control",
+    "cwe_id": "CWE-639",
+    "iso_control": "A.8.3",
+    "iso_control_name": "Information access restriction"
+  },
+  "broken-auth": {
+    "owasp_id": "A07:2021",
+    "owasp_name": "Identification and Authentication Failures",
+    "cwe_id": "CWE-287",
+    "iso_control": "A.8.5",
+    "iso_control_name": "Secure authentication"
+  },
+  "exposed-secret": {
+    "owasp_id": "A02:2021",
+    "owasp_name": "Cryptographic Failures",
+    "cwe_id": "CWE-798",
+    "iso_control": "A.8.24",
+    "iso_control_name": "Use of cryptography / credential handling"
+  },
+  "sensitive-data-exposure": {
+    "owasp_id": "A02:2021",
+    "owasp_name": "Cryptographic Failures",
+    "cwe_id": "CWE-200",
+    "iso_control": "A.8.10",
+    "iso_control_name": "Information deletion / data minimization"
+  },
+  "vulnerable-dependency": {
+    "owasp_id": "A06:2021",
+    "owasp_name": "Vulnerable and Outdated Components",
+    "cwe_id": "CWE-1104",
+    "iso_control": "A.8.8",
+    "iso_control_name": "Management of technical vulnerabilities"
+  },
+  "security-misconfiguration": {
+    "owasp_id": "A05:2021",
+    "owasp_name": "Security Misconfiguration",
+    "cwe_id": "CWE-16",
+    "iso_control": "A.8.9",
+    "iso_control_name": "Configuration management"
+  },
+  "tls-misconfig": {
+    "owasp_id": "A02:2021",
+    "owasp_name": "Cryptographic Failures",
+    "cwe_id": "CWE-326",
+    "iso_control": "A.8.24",
+    "iso_control_name": "Use of cryptography"
+  },
+  "insecure-deserialization": {
+    "owasp_id": "A08:2021",
+    "owasp_name": "Software and Data Integrity Failures",
+    "cwe_id": "CWE-502",
+    "iso_control": "A.8.28",
+    "iso_control_name": "Secure coding"
+  },
+  "api-excessive-data-exposure": {
+    "owasp_id": "API3:2023",
+    "owasp_name": "Broken Object Property Level Authorization",
+    "cwe_id": "CWE-213",
+    "iso_control": "A.8.3",
+    "iso_control_name": "Information access restriction"
+  },
+  "api-broken-object-auth": {
+    "owasp_id": "API1:2023",
+    "owasp_name": "Broken Object Level Authorization",
+    "cwe_id": "CWE-639",
+    "iso_control": "A.8.3",
+    "iso_control_name": "Information access restriction"
+  },
+  "api-rate-limiting": {
+    "owasp_id": "API4:2023",
+    "owasp_name": "Unrestricted Resource Consumption",
+    "cwe_id": "CWE-770",
+    "iso_control": "A.8.6",
+    "iso_control_name": "Capacity management"
+  },
+  "api-broken-auth": {
+    "owasp_id": "API2:2023",
+    "owasp_name": "Broken Authentication",
+    "cwe_id": "CWE-287",
+    "iso_control": "A.8.5",
+    "iso_control_name": "Secure authentication"
+  },
+  "logging-monitoring-failure": {
+    "owasp_id": "A09:2021",
+    "owasp_name": "Security Logging and Monitoring Failures",
+    "cwe_id": "CWE-778",
+    "iso_control": "A.8.15",
+    "iso_control_name": "Logging"
+  },
+  "open-network-port": {
+    "owasp_id": "N/A",
+    "owasp_name": "Network exposure",
+    "cwe_id": "CWE-284",
+    "iso_control": "A.8.20",
+    "iso_control_name": "Networks security"
+  }
+}
