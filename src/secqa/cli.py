@@ -129,6 +129,11 @@ def cmd_hub_serve(args) -> None:
     if args.host not in ("127.0.0.1", "localhost", "::1") and not settings.api_token:
         print("[secqa] WARNING: binding to a non-loopback address without SECQA_API_TOKEN — "
               "anyone on the network can read and modify your data.", file=sys.stderr)
+    from .hub.app import STATIC_DIR
+
+    if not (STATIC_DIR / "index.html").exists():
+        print("[secqa] web UI not built — API only. Build it with: cd frontend && npm ci && npm run build",
+              file=sys.stderr)
     print(f"[secqa] Hub v{__version__} on http://{args.host}:{args.port}  (API docs: /api/docs)")
     uvicorn.run(create_app(settings), host=args.host, port=args.port, log_level="warning")
 

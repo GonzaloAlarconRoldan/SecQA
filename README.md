@@ -1,31 +1,50 @@
 <div align="center">
 
-# SecQA
+# 🛡️ SecQA
 
-**AI-assisted security & performance QA for Claude Code — with a central Hub for runs, test cases and defects.**
+### Your AI pentester and performance tester, with a real defect tracker behind it
+
+SecQA turns **Claude Code** into a security and performance QA engineer for any repository.<br>
+It finds the vulnerabilities, proves them with screenshots, load-tests your endpoints, and tracks everything to closure in a self-hosted Hub.
 
 [![CI](https://github.com/GonzaloAlarconRoldan/SecQA/actions/workflows/ci.yml/badge.svg)](https://github.com/GonzaloAlarconRoldan/SecQA/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/GonzaloAlarconRoldan/SecQA/actions/workflows/codeql.yml/badge.svg)](https://github.com/GonzaloAlarconRoldan/SecQA/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10%E2%80%933.13-3776AB)
 ![k6](https://img.shields.io/badge/perf-k6%20%7C%20JMeter-7D64FF)
+![OWASP](https://img.shields.io/badge/OWASP-Top%2010%20%7C%20API%20Top%2010-000000)
+[![GitHub stars](https://img.shields.io/github/stars/GonzaloAlarconRoldan/SecQA?style=social)](https://github.com/GonzaloAlarconRoldan/SecQA/stargazers)
 
-[Español](README.es.md) · [Architecture](docs/architecture.md) · [Integrations](docs/integrations.md) · [Deployment](docs/deployment.md)
+[Quick start](#quick-start) · [Español](README.es.md) · [Architecture](docs/architecture.md) · [Integrations](docs/integrations.md) · [Deployment](docs/deployment.md)
 
 ![SecQA Hub overview](docs/images/overview.png)
 
 </div>
 
-SecQA turns Claude Code into a security and performance tester for any repository. It detects the stack, runs the right scanners (SAST, SCA, secrets, API, DAST) and k6 load tests. Everything it finds lands in the **SecQA Hub**, where people triage findings, track defects against SLAs and watch trends across runs.
+## Why SecQA?
+
+Scanners are easy to run. **Everything around them is the hard part**:
+- picking the right tools for each stack;
+- knowing which of 300 alerts actually matter today;
+- proving an issue to the person who has to fix it;
+- making sure it stays fixed.
+
+SecQA covers that whole loop:
 
 ```
-/pentest-run        →  recon · intel (OSV · KEV · EPSS · NVD) · SAST · SCA · secrets · API · DAST  →  findings
-/perf-test          →  k6 smoke / load / stress against a baseline →  latency, throughput, regressions
-                                     │
-                              secqa CLI (validated)
-                                     ▼
-            SecQA Hub — executions · triage · defects · test cases · compliance · reports
+/pentest-run   recon → fresh intel (OSV · CISA KEV · EPSS · NVD) → SAST · SCA · secrets · API · DAST
+/perf-test     k6 smoke / load / stress, capped by scope.yml, compared against your baseline
+                                   │  secqa CLI (validated, audited)
+                                   ▼
+SecQA Hub      triage → defects with SLAs → screenshots as evidence → trends → compliance → reports
 ```
+
+What a run tells you, in plain words:
+
+> **2 actively exploited vulnerabilities (CISA KEV):** `log4j-core@2.14.1` → upgrade to **2.15.0**.<br>
+> **SQL injection on `POST /login`:** before/after screenshots show the login as admin with `' OR 1=1--`.<br>
+> **IDOR:** with the same session, changing `?id=2` to `?id=3` shows another customer's address (masked in the evidence).<br>
+> **Performance:** `GET /search` p95 is up 88 % against the baseline, so a regression defect was opened automatically.
 
 ## Highlights
 
@@ -45,7 +64,17 @@ SecQA turns Claude Code into a security and performance tester for any repositor
 
 ## Quick start
 
-### 1. See it with demo data (2 minutes)
+### 0. Try it in 60 seconds, no Docker
+
+```bash
+git clone https://github.com/GonzaloAlarconRoldan/SecQA && cd SecQA
+pip install -e ".[hub]"            # Python 3.10+
+secqa demo seed && secqa hub serve # → http://127.0.0.1:8787 with 12 weeks of realistic data
+```
+
+To try a real attack, `python examples/vuln-lab/app.py` starts a tiny, deliberately vulnerable shop on `127.0.0.1:5055`.
+
+### 1. See it with demo data in Docker (2 minutes)
 
 ```bash
 git clone https://github.com/GonzaloAlarconRoldan/SecQA && cd SecQA
@@ -141,3 +170,11 @@ PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Good first issues: new p
 ## License
 
 [MIT](LICENSE) © Gonzalo Alarcón Roldán. OWASP item names are referenced under CC BY-SA. ISO/IEC 27001 is referenced by control ID and short title only; the standard's text is not included.
+
+---
+
+<div align="center">
+
+If SecQA saves you time, please ⭐ **star the repo**. It helps other QA and security engineers find it.
+
+</div>

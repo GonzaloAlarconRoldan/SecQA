@@ -48,6 +48,12 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
+      - name: Committed UI build is up to date
+        working-directory: .
+        run: |
+          git status --porcelain src/secqa/hub/static
+          test -z "$(git status --porcelain src/secqa/hub/static)" || {
+            echo "::error::src/secqa/hub/static is stale — run 'cd frontend && npm run build' and commit it"; exit 1; }
 
   k6:
     name: k6 templates

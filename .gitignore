@@ -11,10 +11,9 @@ dist/
 .coverage
 htmlcov/
 
-# Node / UI build (the SPA is built into the Python package at release time)
+# Node (the built UI in src/secqa/hub/static/ IS committed so a fresh clone works; CI checks it is current)
 frontend/node_modules/
 frontend/dist/
-src/secqa/hub/static/
 
 # SecQA runtime data — never commit findings, scopes or databases
 .secqa-data/
