@@ -1,6 +1,7 @@
 """FastAPI application factory for the SecQA Hub."""
 from __future__ import annotations
 
+import mimetypes
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -13,6 +14,7 @@ from .config import Settings, get_settings
 from .db import Database, upgrade_schema
 from .deps import AppSettings, require_token
 from .models import (
+    Attachment,
     DefectKind,
     DefectStatus,
     Priority,
@@ -24,7 +26,8 @@ from .models import (
     TestType,
     TriageStatus,
 )
-from .routers import defects, findings, insights, projects, runs, testcases
+from .routers import defects, findings, insights, projects, reports, runs, testcases
+from .services.reports import SANDBOX_CSP, verify
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -85,8 +88,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     protected = [Depends(require_token)]
     for router in (projects.router, runs.router, findings.router, defects.router,
-                   testcases.router, insights.router):
+                   testcases.router, insights.router, reports.router):
         app.include_router(router, prefix="/api", dependencies=protected)
+
+    @app.get("/r/{report_id}/{exp}/{sig}/{path:path}", include_in_schema=False)
+    def view_report(report_id: int, exp: int, sig: str, path: str):
+        """Serve a tool's HTML report in a sandboxed, opaque origin (see services/reports.py)."""
+        if not verify(settings, report_id, exp, sig):
+            raise HTTPException(403, "link expired or invalid — reopen the report from the Hub")
+        with db.SessionLocal() as session:
+            a = session.get(Attachment, report_id)
+        if a is None or a.kind != "report":
+            raise HTTPException(404)
+        root = (settings.attachments_dir / a.storage_path).resolve()
+        target = (root / (path or a.entry or "index.html")).resolve()
+        if root not in target.parents or not target.is_file():
+            raise HTTPException(404)
+        media = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+        return FileResponse(target, media_type=media, headers={
+            "Content-Security-Policy": SANDBOX_CSP, "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "no-referrer", "Cache-Control": "private, max-age=600",
+            "Cross-Origin-Resource-Policy": "same-origin",
+        })
 
     if STATIC_DIR.joinpath("index.html").exists():
         @app.get("/{full_path:path}", include_in_schema=False)

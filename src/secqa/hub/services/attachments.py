@@ -81,7 +81,8 @@ def evidence_query(defect_id: int | None = None, finding_ids: Iterable[int] = ()
         clauses.append(Attachment.defect_id == defect_id)
     if ids:
         clauses.append(Attachment.finding_id.in_(ids))
-    return select(Attachment).where(or_(*clauses)).order_by(Attachment.created_at, Attachment.id)
+    return (select(Attachment).where(or_(*clauses), Attachment.kind != "report")
+            .order_by(Attachment.created_at, Attachment.id))
 
 
 def linked_finding_ids(db: Session, defect_id: int) -> list[int]:

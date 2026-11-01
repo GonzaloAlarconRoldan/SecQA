@@ -5,6 +5,11 @@ All notable changes to this project are documented here. Format based on [Keep a
 ## [2.0.0] - 2026-11-01
 
 ### Added
+- **Tool HTML reports**:
+  - `secqa report upload <file|folder> --tool k6|jmeter|zap|osv-scanner|…` attaches the tool's own report to a run.
+  - The UI links to them from the run detail, Performance, Executions and Reports pages.
+  - Reports are served in a CSP sandbox (opaque origin, so the report's JavaScript can't reach the Hub's token or API) behind HMAC-signed links that expire after 12 h. Zip-slip and zip-bomb checks run on upload.
+  - The perf-test, DAST and SCA skills export and upload the k6 dashboard, JMeter `-o`, ZAP `-r` and osv-scanner `--format html` reports.
 - **Stack detection & vulnerability intelligence**:
   - `secqa detect` is a deterministic inventory: languages, frameworks, DB, auth, APIs, Docker images, ports, and exact component versions from npm, PyPI, Go, Maven, RubyGems, Packagist, crates.io and NuGet lockfiles.
   - `secqa intel` checks that inventory against OSV.dev, CISA KEV, FIRST EPSS and NVD (last N days, filtered by CPE or description). KEV bumps a finding to critical and EPSS ≥ 50 % to at least high. It recommends the version to upgrade to and caches each source.

@@ -32,9 +32,11 @@ Si no existe `perf/endpoints.json`, créalo desde `perf/endpoints.example.json` 
 secqa run start --kind performance --name "<perfil> — <versión/rama>" --target <BASE_URL> --env local-docker
 secqa audit "k6 run PROFILE=<perfil> VUS=<N>" --target <host:puerto>
 mkdir -p secqa-out
+K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=secqa-out/k6-report.html \
 k6 run -e BASE_URL=<BASE_URL> -e PROFILE=<perfil> -e VUS=<N> -e MAX_VUS=<performance.max_vus> \
        -e P95_MS=<umbral> -e ERROR_RATE=<umbral> perf/scenarios/endpoints.js
 secqa ingest k6 secqa-out/k6-summary.json --scenario <perfil>
+secqa report upload secqa-out/k6-report.html --tool k6 --title "k6 dashboard — <perfil>"
 secqa run finish
 ```
 
@@ -44,13 +46,17 @@ Si k6 no está instalado: `secqa doctor --only k6` y, con permiso del usuario, `
 
 **JMeter** (si el equipo ya tiene planes `.jmx`): ejecútalo headless con salida CSV y súbelo:
 ```bash
-jmeter -n -t <plan.jmx> -l secqa-out/results.jtl -Jjmeter.save.saveservice.output_format=csv
+jmeter -n -t <plan.jmx> -l secqa-out/results.jtl -Jjmeter.save.saveservice.output_format=csv \
+       -e -o secqa-out/jmeter-report
 secqa ingest jtl secqa-out/results.jtl --scenario <perfil>
+secqa report upload secqa-out/jmeter-report --tool jmeter --title "JMeter dashboard — <perfil>"
 ```
 
 ## 4. Interpretar y reportar
 
 `secqa ingest` devuelve si pasaron los thresholds y cuántas regresiones hay frente al baseline. Si hay regresión, el Hub abre automáticamente un defecto `performance`.
+
+El dashboard HTML de k6/JMeter queda enlazado en la run del Hub ("Tool reports" → Open report), y también en la página Performance. Incluye el enlace en tu resumen.
 
 Resume al usuario:
 - p95/p99, throughput (req/s) y tasa de error totales y por endpoint (tabla corta),

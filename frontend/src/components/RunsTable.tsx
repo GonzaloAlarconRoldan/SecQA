@@ -4,12 +4,14 @@ import type { Run } from "../api/types";
 import { fmtDuration, fmtRelative } from "../lib/format";
 import { usePrefs } from "../lib/prefs";
 import { useProjectKey, withProject } from "../lib/project";
+import { ReportIcons, useReportsByRun } from "./ToolReports";
 import { Empty, Pill, SeverityBar, TableSkeleton } from "./ui";
 
 export function RunsTable({ runs, loading, compact }: { runs: Run[]; loading?: boolean; compact?: boolean }) {
   const { t, lang } = usePrefs();
   const [project] = useProjectKey();
   const navigate = useNavigate();
+  const reportsByRun = useReportsByRun(project);
   if (loading) return <TableSkeleton rows={compact ? 5 : 10} />;
   if (!runs.length) return <Empty />;
   return (
@@ -46,9 +48,14 @@ export function RunsTable({ runs, loading, compact }: { runs: Run[]; loading?: b
               <td>
                 <Pill value={r.status} />
               </td>
-              <td className="max-w-[280px] truncate">
-                {r.is_baseline && <Star className="mr-1 inline h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-label={t("rn.baseline")} />}
-                {r.name || r.target || <span className="muted">—</span>}
+              <td className="max-w-[340px]">
+                <div className="flex items-center gap-2">
+                  <span className="truncate">
+                    {r.is_baseline && <Star className="mr-1 inline h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-label={t("rn.baseline")} />}
+                    {r.name || r.target || <span className="muted">—</span>}
+                  </span>
+                  <ReportIcons reports={reportsByRun.get(r.id)} />
+                </div>
               </td>
               <td>
                 {r.kind === "performance" ? (

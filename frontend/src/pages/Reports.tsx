@@ -1,12 +1,15 @@
-import { Download, FileSpreadsheet, FileText, ShieldCheck } from "lucide-react";
+import { Download, ExternalLink, FileBarChart, FileSpreadsheet, FileText, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import { download, openHtml } from "../api/client";
-import { useProjects, useRuns } from "../api/hooks";
-import { SEVERITIES, type Severity } from "../api/types";
-import { Card, ChipToggle, Field, PageHeader } from "../components/ui";
+import { useProjects, useRuns, useToolReports } from "../api/hooks";
+import { SEVERITIES, TOOL_REPORT_TOOLS, type Severity } from "../api/types";
+import { ReportLink, ToolBadge, toolMeta } from "../components/ToolReports";
+import { Card, ChipToggle, Empty, Field, PageHeader, TableSkeleton } from "../components/ui";
+import { fmtBytes, fmtRelative } from "../lib/format";
 import type { Lang } from "../lib/i18n";
 import { usePrefs } from "../lib/prefs";
-import { useProjectKey } from "../lib/project";
+import { useProjectKey, withProject } from "../lib/project";
 import { useToast } from "../lib/toast";
 
 export default function ReportsPage() {
@@ -111,6 +114,74 @@ export default function ReportsPage() {
           </div>
         </Card>
       </div>
+      <ToolReportsSection project={project || undefined} />
     </>
+  );
+}
+
+function ToolReportsSection({ project }: { project?: string }) {
+  const { t, lang } = usePrefs();
+  const [tool, setTool] = useState("");
+  const { data, isLoading } = useToolReports({ project, tool: tool || undefined, limit: 100 });
+  return (
+    <Card
+      className="mt-4"
+      bodyClass="overflow-x-auto"
+      title={<span className="flex items-center gap-2"><FileBarChart className="h-4 w-4" /> {t("tr.title")}</span>}
+      actions={
+        <select className="input h-8 w-44 py-1 text-sm" value={tool} onChange={(e) => setTool(e.target.value)} aria-label={t("tr.tool")}>
+          <option value="">{t("tr.allTools")}</option>
+          {TOOL_REPORT_TOOLS.map((x) => (
+            <option key={x} value={x}>{toolMeta(x).label}</option>
+          ))}
+        </select>
+      }
+    >
+      <p className="muted px-4 pb-2 pt-3 text-xs">{t("tr.subtitle")}</p>
+      {isLoading ? (
+        <TableSkeleton rows={4} />
+      ) : !data?.length ? (
+        <Empty message={t("tr.empty")}>
+          <p className="muted text-xs">{t("tr.hint")}</p>
+        </Empty>
+      ) : (
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>{t("tr.tool")}</th>
+              <th>{t("c.title")}</th>
+              <th>{t("tr.run")}</th>
+              {!project && <th>{t("c.project")}</th>}
+              <th className="num">{t("tr.size")}</th>
+              <th>{t("c.started")}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((r) => (
+              <tr key={r.id}>
+                <td><ToolBadge tool={r.tool} /></td>
+                <td className="max-w-[320px] truncate" title={r.title ?? r.filename}>{r.title ?? r.filename}</td>
+                <td className="whitespace-nowrap text-xs">
+                  <Link className="text-indigo-600 hover:underline dark:text-indigo-400" to={withProject(`/runs/${r.run_id}`, r.project_key)}>
+                    #{r.run_id}
+                  </Link>{" "}
+                  <span className="muted">{r.run_name ?? r.run_kind}</span>
+                </td>
+                {!project && <td className="font-mono text-xs">{r.project_key}</td>}
+                <td className="num text-xs">{fmtBytes(r.size)}</td>
+                <td className="muted whitespace-nowrap text-xs">{fmtRelative(r.created_at, lang)}</td>
+                <td className="text-right">
+                  <ReportLink report={r} className="btn btn-sm">
+                    {t("tr.open")} <ExternalLink className="h-3.5 w-3.5" />
+                  </ReportLink>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <p className="muted px-4 py-3 text-xs">{t("tr.sandbox")}</p>
+    </Card>
   );
 }

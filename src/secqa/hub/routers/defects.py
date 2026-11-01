@@ -35,6 +35,7 @@ from ..schemas import (
 )
 from ..services.attachments import evidence_query, save_upload
 from ..services.defects import create_defect, is_sla_breached, update_defect
+from ..services.reports import remove_files
 
 router = APIRouter(tags=["defects"])
 
@@ -230,10 +231,7 @@ async def add_attachment(defect_id: int, db: DB, actor: Actor, settings: AppSett
 @router.delete("/attachments/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_attachment(attachment_id: int, db: DB, actor: Actor, settings: AppSettings):
     a = get_or_404(db, Attachment, attachment_id)
-    root = settings.attachments_dir.resolve()
-    path = (root / a.storage_path).resolve()
-    if root in path.parents and path.is_file():
-        path.unlink()
+    remove_files(settings, a)
     db.add(AuditLog(project_id=a.project_id, actor=actor, action=f"deleted attachment '{a.filename}'"))
     db.delete(a)
     db.commit()

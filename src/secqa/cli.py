@@ -496,6 +496,42 @@ def cmd_intel(args) -> None:
               f"({res['suppressed']} auto-suppressed, {res['skipped']} duplicates)")
 
 
+def _zip_dir(folder: Path) -> bytes:
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for f in sorted(folder.rglob("*")):
+            if f.is_file() and not f.is_symlink():
+                zf.write(f, f.relative_to(folder).as_posix())
+    return buf.getvalue()
+
+
+def cmd_report_upload(args) -> None:
+    path = Path(args.path)
+    if path.is_dir():
+        if not any(path.rglob("*.htm*")):
+            raise CLIError(f"{path} has no .html file")
+        content, name = _zip_dir(path), f"{path.name}.zip"
+    elif path.is_file():
+        content, name = path.read_bytes(), path.name
+    else:
+        raise CLIError(f"{path} not found")
+    data = {"tool": args.tool, **({"title": args.title} if args.title else {})}
+    res = _call(args, "POST", f"/api/runs/{_run_id(args)}/reports", data=data, files={"file": (name, content)})
+    base = (_cfg(args, "url", "SECQA_URL", DEFAULT_URL) or DEFAULT_URL).rstrip("/")
+    _out(args, res, f"[ok] {res['tool']} report attached to run #{res['run_id']}\n"
+                    f"     open: {base}{res['view_url']}  (link valid 12 h; always available from the run page)")
+
+
+def cmd_report_list(args) -> None:
+    rows = _call(args, "GET", "/api/tool-reports", params={"project": _project(args)})
+    base = (_cfg(args, "url", "SECQA_URL", DEFAULT_URL) or DEFAULT_URL).rstrip("/")
+    _out(args, rows, "\n".join(f"run #{r['run_id']:<5} {r['tool']:12} {r['title'] or r['filename']:40} "
+                               f"{base}{r['view_url']}" for r in rows) or "(no tool reports)")
+
+
 def cmd_results_add(args) -> None:
     items = json.loads(Path(args.file).read_text("utf-8"))
     res = _call(args, "POST", f"/api/runs/{_run_id(args)}/results", json=items)
@@ -708,6 +744,18 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--ingest", action="store_true", help="create findings and store the summary on the current run")
     s.add_argument("--run")
     s.set_defaults(func=cmd_intel)
+
+    rep = sub.add_parser("report", help="tool HTML reports (k6 dashboard, JMeter, ZAP…) viewable from the Hub")
+    rep_sub = rep.add_subparsers(dest="sub", required=True)
+    s = rep_sub.add_parser("upload", help="attach an .html report or a report folder to the current run")
+    s.add_argument("path", help="report.html, a folder (e.g. JMeter -o dir) or a .zip")
+    s.add_argument("--tool", required=True,
+                   choices=["k6", "jmeter", "zap", "osv-scanner", "trivy", "nuclei", "semgrep", "playwright",
+                            "lighthouse", "gatling", "locust", "allure", "other"])
+    s.add_argument("--title")
+    s.add_argument("--run")
+    s.set_defaults(func=cmd_report_upload)
+    rep_sub.add_parser("list", help="list tool reports of the project").set_defaults(func=cmd_report_list)
 
     s = sub.add_parser("attach", help="attach evidence files to a finding or defect")
     s.add_argument("files", nargs="+", metavar="FILE[::caption]")

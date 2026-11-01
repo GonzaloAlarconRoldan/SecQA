@@ -441,6 +441,21 @@ class PerfMetricOut(ORM):
     thresholds: dict[str, Any] | None
 
 
+class ToolReportOut(BaseModel):
+    id: int
+    run_id: int
+    run_name: str | None
+    run_kind: str
+    project_key: str
+    tool: str
+    title: str | None
+    filename: str
+    size: int
+    created_by: str | None
+    created_at: UTCDateTime
+    view_url: str  # signed, expires after 12 h; open in a new tab
+
+
 # ---- audit -----------------------------------------------------------------
 
 class AuditCreate(BaseModel):
