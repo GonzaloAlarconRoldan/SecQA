@@ -8,7 +8,7 @@ COPY frontend/ ./
 RUN npm run build   # writes to /app/src/secqa/hub/static
 
 # ---- 2. build the Python wheel -----------------------------------------------
-FROM python:3.12-slim AS wheel
+FROM python:3.15-slim AS wheel
 WORKDIR /src
 RUN pip install --no-cache-dir build==1.2.2
 COPY pyproject.toml README.md LICENSE ./
@@ -18,7 +18,7 @@ COPY --from=ui /app/src/secqa/hub/static/ src/secqa/hub/static/
 RUN python -m build --wheel --outdir /dist
 
 # ---- 3. runtime --------------------------------------------------------------
-FROM python:3.12-slim
+FROM python:3.15-slim
 LABEL org.opencontainers.image.title="SecQA Hub" \
       org.opencontainers.image.description="Security & performance QA hub: runs, findings, defects, test cases" \
       org.opencontainers.image.source="https://github.com/GonzaloAlarconRoldan/SecQA" \
