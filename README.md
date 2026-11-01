@@ -86,6 +86,11 @@ Then in Claude Code, inside that project:
 
 REST API with OpenAPI docs at `/api/docs`.
 
+| | |
+|---|---|
+| ![Defects board](docs/images/defects-board.png) | ![Findings triage](docs/images/findings.png) |
+| ![Perf run vs baseline](docs/images/run-perf.png) | ![Compliance matrix](docs/images/compliance.png) |
+
 ## CLI at a glance
 
 ```bash

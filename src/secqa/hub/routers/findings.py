@@ -42,6 +42,9 @@ def list_findings(
     triage_status: list[TriageStatus] | None = Query(None),
     source: str | None = None,
     category: str | None = None,
+    owasp_id: str | None = None,
+    cwe_id: str | None = None,
+    iso_control: str | None = None,
     q: str | None = None,
     new_only: bool = False,
     untracked: bool = Query(False, description="only findings not linked to a defect"),
@@ -62,6 +65,12 @@ def list_findings(
         stmt = stmt.where(Finding.source == source)
     if category:
         stmt = stmt.where(Finding.category == category)
+    if owasp_id:
+        stmt = stmt.where(Finding.owasp_id == owasp_id)
+    if cwe_id:
+        stmt = stmt.where(Finding.cwe_id == cwe_id)
+    if iso_control:
+        stmt = stmt.where(Finding.iso_control == iso_control)
     if untracked:
         stmt = stmt.where(Finding.defect_id.is_(None))
     if q:
