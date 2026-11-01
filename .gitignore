@@ -1,0 +1,10 @@
+findings.db
+scope.yml
+evidence/
+report_*.html
+report_*.pdf
+*.pyc
+__pycache__/
+semgrep_results.json
+gitleaks_results.json
+zap_report.json

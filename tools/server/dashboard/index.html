@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SecQA — Pentest Review Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e2229; --border:#2a2f3a;
+    --text:#e7e9ee; --muted:#9aa3b2; --accent:#5b9dff;
+    --crit:#e5484d; --high:#f2994a; --med:#f2c94c; --low:#56ccf2; --info:#9aa3b2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
+  header h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.2px}
+  header h1 span{color:var(--muted);font-weight:400}
+  .toolbar{display:flex;gap:10px;align-items:center}
+  select,input,button{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px}
+  button{cursor:pointer}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#0a0c10;font-weight:600}
+  button.ghost{background:transparent}
+  main{padding:20px;max-width:1280px;margin:0 auto}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px}
+  .kpi .n{font-size:26px;font-weight:700}
+  .kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  .kpi.crit .n{color:var(--crit)} .kpi.high .n{color:var(--high)} .kpi.med .n{color:var(--med)} .kpi.low .n{color:var(--low)}
+  .charts{display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-bottom:20px}
+  .charts .wide{grid-column:1/-1}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px}
+  .panel h3{margin:0 0 10px;font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase}
+  tr:hover td{background:var(--panel2)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .badge.critical{background:rgba(229,72,77,.15);color:var(--crit)}
+  .badge.high{background:rgba(242,153,74,.15);color:var(--high)}
+  .badge.medium{background:rgba(242,201,76,.15);color:var(--med)}
+  .badge.low{background:rgba(86,204,242,.15);color:var(--low)}
+  .badge.info{background:rgba(154,163,178,.15);color:var(--info)}
+  .status-pill{padding:2px 8px;border-radius:6px;font-size:11px;border:1px solid var(--border)}
+  .status-pending{color:var(--med)} .status-approved{color:#6fcf97} .status-rejected{color:var(--muted);text-decoration:line-through} .status-manual{color:var(--accent)}
+  .row-actions{display:flex;gap:6px}
+  .row-actions button{padding:4px 8px;font-size:12px}
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:20px;width:560px;max-width:92vw}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  textarea,dialog input,dialog select{width:100%}
+  textarea{min-height:70px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px}
+  .dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:24px}
+  @media print {
+    header, .filters, .row-actions, button { display:none !important; }
+    body{background:#fff;color:#000}
+    .panel,.kpi{border-color:#ccc;background:#fff}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="t-title">SecQA Review <span id="t-subtitle">— dashboard de hallazgos</span></h1>
+  <div class="toolbar">
+    <select id="runFilter"></select>
+    <button class="ghost" id="langToggle">EN</button>
+    <button class="primary" id="btnAddFinding" data-i18n="add_finding">+ Hallazgo manual</button>
+  </div>
+</header>
+
+<main>
+  <div class="grid" id="kpis"></div>
+
+  <div class="charts">
+    <div class="panel">
+      <h3 data-i18n="chart_severity">Distribución por severidad</h3>
+      <canvas id="chartSeverity" height="200"></canvas>
+    </div>
+    <div class="panel">
+      <h3 data-i18n="chart_status">Estado de revisión</h3>
+      <canvas id="chartStatus" height="200"></canvas>
+    </div>
+    <div class="panel wide">
+      <h3 data-i18n="chart_trend">Tendencia por ejecución</h3>
+      <canvas id="chartTrend" height="90"></canvas>
+    </div>
+    <div class="panel wide">
+      <h3 data-i18n="chart_category">Hallazgos por categoría</h3>
+      <canvas id="chartCategory" height="110"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="filters">
+      <input id="searchBox" type="search" data-i18n-ph="search_ph" placeholder="Buscar título, archivo, descripción..." />
+      <select id="severityFilter"><option value="">— severidad —</option></select>
+      <select id="statusFilter"><option value="">— estado —</option></select>
+      <select id="sourceFilter"><option value="">— fuente —</option></select>
+      <button class="ghost" id="btnPrint" data-i18n="print_pdf">🖨️ Exportar PDF (imprimir)</button>
+    </div>
+    <table id="findingsTable">
+      <thead>
+        <tr>
+          <th data-i18n="col_severity">Severidad</th>
+          <th data-i18n="col_title">Título</th>
+          <th data-i18n="col_category">Categoría</th>
+          <th data-i18n="col_location">Ubicación</th>
+          <th data-i18n="col_status">Estado</th>
+          <th data-i18n="col_actions">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="findingsBody"></tbody>
+    </table>
+  </div>
+</main>
+
+<dialog id="findingDialog">
+  <h3 id="dialogTitle" data-i18n="dialog_title_add">Nuevo hallazgo manual</h3>
+  <form id="findingForm">
+    <label data-i18n="f_title">Título</label>
+    <input name="title" required />
+    <label data-i18n="f_category">Categoría</label>
+    <input name="category" placeholder="e.g. sql-injection, idor, exposed-secret" />
+    <label data-i18n="f_severity">Severidad</label>
+    <select name="severity">
+      <option value="critical">Critical</option>
+      <option value="high">High</option>
+      <option value="medium" selected>Medium</option>
+      <option value="low">Low</option>
+      <option value="info">Info</option>
+    </select>
+    <label data-i18n="f_location">Archivo / endpoint</label>
+    <input name="file_path" placeholder="src/api/users.js:42 o POST /api/users" />
+    <label data-i18n="f_desc">Descripción</label>
+    <textarea name="description"></textarea>
+    <label data-i18n="f_remediation">Remediación sugerida</label>
+    <textarea name="remediation"></textarea>
+    <div class="dialog-actions">
+      <button type="button" class="ghost" id="btnCancel" data-i18n="cancel">Cancelar</button>
+      <button type="submit" class="primary" data-i18n="save">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="detailDialog">
+  <h3 id="detailTitle">—</h3>
+  <div id="detailBody" style="font-size:13px;line-height:1.5"></div>
+  <div class="dialog-actions">
+    <button class="ghost" id="btnCloseDetail" data-i18n="close">Cerrar</button>
+  </div>
+</dialog>
+
+<footer>SecQA Pentest Framework — <span data-i18n="footer_note">revisión local, los datos nunca salen de esta máquina</span></footer>
+
+<script>
+const I18N = {
+  es: {
+    add_finding:"+ Hallazgo manual", chart_severity:"Distribución por severidad", chart_status:"Estado de revisión",
+    chart_trend:"Tendencia por ejecución", chart_category:"Hallazgos por categoría",
+    search_ph:"Buscar título, archivo, descripción...", print_pdf:"🖨️ Exportar PDF (imprimir)",
+    col_severity:"Severidad", col_title:"Título", col_category:"Categoría", col_location:"Ubicación",
+    col_status:"Estado", col_actions:"Acciones", dialog_title_add:"Nuevo hallazgo manual",
+    f_title:"Título", f_category:"Categoría", f_severity:"Severidad", f_location:"Archivo / endpoint",
+    f_desc:"Descripción", f_remediation:"Remediación sugerida", cancel:"Cancelar", save:"Guardar", close:"Cerrar",
+    footer_note:"revisión local, los datos nunca salen de esta máquina",
+    approve:"Aprobar", reject:"Rechazar", view:"Ver", all_runs:"Todas las ejecuciones",
+    kpi_total:"Total hallazgos", kpi_critical:"Críticos", kpi_high:"Altos", kpi_pending:"Pendientes",
+    subtitle:"— dashboard de hallazgos", status_pending:"pendiente", status_approved:"aprobado",
+    status_rejected:"rechazado", status_manual:"manual",
+  },
+  en: {
+    add_finding:"+ Manual finding", chart_severity:"Severity distribution", chart_status:"Review status",
+    chart_trend:"Trend by run", chart_category:"Findings by category",
+    search_ph:"Search title, file, description...", print_pdf:"🖨️ Export PDF (print)",
+    col_severity:"Severity", col_title:"Title", col_category:"Category", col_location:"Location",
+    col_status:"Status", col_actions:"Actions", dialog_title_add:"New manual finding",
+    f_title:"Title", f_category:"Category", f_severity:"Severity", f_location:"File / endpoint",
+    f_desc:"Description", f_remediation:"Suggested remediation", cancel:"Cancel", save:"Save", close:"Close",
+    footer_note:"local review — data never leaves this machine",
+    approve:"Approve", reject:"Reject", view:"View", all_runs:"All runs",
+    kpi_total:"Total findings", kpi_critical:"Critical", kpi_high:"High", kpi_pending:"Pending",
+    subtitle:"— findings dashboard", status_pending:"pending", status_approved:"approved",
+    status_rejected:"rejected", status_manual:"manual",
+  }
+};
+let LANG = localStorage.getItem('secqa_lang') || 'es';
+let charts = {};
+
+function t(key){ return I18N[LANG][key] || key; }
+
+function applyI18n(){
+  document.documentElement.lang = LANG;
+  document.getElementById('langToggle').textContent = LANG === 'es' ? 'EN' : 'ES';
+  document.getElementById('t-subtitle').textContent = t('subtitle');
+  document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => el.placeholder = t(el.dataset.i18nPh));
+}
+
+async function api(path, opts){
+  const res = await fetch(path, opts);
+  if (!res.ok) throw new Error(await res.text());
+  return res.status === 204 ? null : res.json();
+}
+
+async function loadRuns(){
+  const runs = await api('/api/runs');
+  const sel = document.getElementById('runFilter');
+  sel.innerHTML = `<option value="">${t('all_runs')}</option>` +
+    runs.map(r => `<option value="${r.id}">#${r.id} — ${r.started_at.slice(0,16).replace('T',' ')}</option>`).join('');
+}
+
+function currentFilters(){
+  const p = new URLSearchParams();
+  const runId = document.getElementById('runFilter').value;
+  const sev = document.getElementById('severityFilter').value;
+  const status = document.getElementById('statusFilter').value;
+  const source = document.getElementById('sourceFilter').value;
+  const q = document.getElementById('searchBox').value;
+  if (runId) p.set('run_id', runId);
+  if (sev) p.set('severity', sev);
+  if (status) p.set('status', status);
+  if (source) p.set('source', source);
+  if (q) p.set('q', q);
+  return p;
+}
+
+function fillStaticSelectOptions(){
+  const sevSel = document.getElementById('severityFilter');
+  ['critical','high','medium','low','info'].forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s; sevSel.appendChild(o);
+  });
+  const statusSel = document.getElementById('statusFilter');
+  ['pending','approved','rejected','manual'].forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s; statusSel.appendChild(o);
+  });
+  const srcSel = document.getElementById('sourceFilter');
+  ['recon','sast','sca','secrets','api','dast','manual'].forEach(s => {
+    const o = document.createElement('option'); o.value = s; o.textContent = s; srcSel.appendChild(o);
+  });
+}
+
+async function refreshAll(){
+  await Promise.all([renderFindings(), renderStats()]);
+}
+
+async function renderFindings(){
+  const findings = await api('/api/findings?' + currentFilters().toString());
+  const tbody = document.getElementById('findingsBody');
+  tbody.innerHTML = findings.map(f => `
+    <tr>
+      <td><span class="badge ${f.severity}">${f.severity}</span></td>
+      <td><a href="#" onclick="showDetail(${f.id});return false;">${escapeHtml(f.title)}</a></td>
+      <td>${escapeHtml(f.category || '')}</td>
+      <td>${escapeHtml(f.file_path || f.endpoint || '')}</td>
+      <td><span class="status-pill status-${f.status}">${t('status_'+f.status) || f.status}</span></td>
+      <td class="row-actions">
+        <button onclick="setStatus(${f.id},'approved')">${t('approve')}</button>
+        <button onclick="setStatus(${f.id},'rejected')">${t('reject')}</button>
+      </td>
+    </tr>
+  `).join('') || `<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">—</td></tr>`;
+  window.__findings = Object.fromEntries(findings.map(f => [f.id, f]));
+}
+
+function escapeHtml(s){
+  return (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+window.showDetail = function(id){
+  const f = window.__findings[id];
+  document.getElementById('detailTitle').textContent = f.title;
+  document.getElementById('detailBody').innerHTML = `
+    <p><b>${t('col_severity')}:</b> ${f.severity} &nbsp; <b>CVSS:</b> ${f.cvss_score ?? '—'}</p>
+    <p><b>${t('col_category')}:</b> ${escapeHtml(f.category||'')} &nbsp; <b>CWE:</b> ${f.cwe_id||'—'} &nbsp; <b>OWASP:</b> ${f.owasp_id||'—'}</p>
+    <p><b>ISO/IEC 27001 Annex A:</b> ${f.iso_control||'—'}</p>
+    <p><b>${t('col_location')}:</b> ${escapeHtml(f.file_path||f.endpoint||'—')}${f.line_start?(':'+f.line_start):''}</p>
+    <p><b>${t('f_desc')}:</b><br>${escapeHtml(f.description||'—')}</p>
+    <p><b>${t('f_remediation')}:</b><br>${escapeHtml(f.remediation||'—')}</p>
+    ${f.evidence_path ? `<p><b>Evidencia:</b> <a href="/evidence/${f.evidence_path}" target="_blank">${f.evidence_path}</a></p>` : ''}
+  `;
+  document.getElementById('detailDialog').showModal();
+};
+
+window.setStatus = async function(id, status){
+  await api(`/api/findings/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({status, reviewed_by: 'reviewer'})
+  });
+  await refreshAll();
+};
+
+async function renderStats(){
+  const qs = currentFilters();
+  const runId = qs.get('run_id');
+  const stats = await api('/api/stats' + (runId ? `?run_id=${runId}` : ''));
+
+  const total = Object.values(stats.by_severity).reduce((a,b)=>a+b,0);
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="n">${total}</div><div class="l">${t('kpi_total')}</div></div>
+    <div class="kpi crit"><div class="n">${stats.by_severity.critical||0}</div><div class="l">${t('kpi_critical')}</div></div>
+    <div class="kpi high"><div class="n">${stats.by_severity.high||0}</div><div class="l">${t('kpi_high')}</div></div>
+    <div class="kpi med"><div class="n">${stats.by_status.pending||0}</div><div class="l">${t('kpi_pending')}</div></div>
+  `;
+
+  const sevColors = {critical:'#e5484d',high:'#f2994a',medium:'#f2c94c',low:'#56ccf2',info:'#9aa3b2'};
+  drawChart('chartSeverity','doughnut',{
+    labels: Object.keys(stats.by_severity),
+    datasets: [{data: Object.values(stats.by_severity), backgroundColor: Object.keys(stats.by_severity).map(k=>sevColors[k])}]
+  });
+
+  const statusColors = {pending:'#f2c94c',approved:'#6fcf97',rejected:'#9aa3b2',manual:'#5b9dff'};
+  drawChart('chartStatus','doughnut',{
+    labels: Object.keys(stats.by_status),
+    datasets: [{data: Object.values(stats.by_status), backgroundColor: Object.keys(stats.by_status).map(k=>statusColors[k])}]
+  });
+
+  drawChart('chartCategory','bar',{
+    labels: stats.by_category.map(c=>c.category),
+    datasets: [{label:'#', data: stats.by_category.map(c=>c.count), backgroundColor:'#5b9dff'}]
+  }, {indexAxis:'y'});
+
+  drawChart('chartTrend','line',{
+    labels: stats.trend.map(r=>'#'+r.run_id),
+    datasets: [
+      {label:'critical', data: stats.trend.map(r=>r.critical), borderColor: sevColors.critical, tension:.3},
+      {label:'high', data: stats.trend.map(r=>r.high), borderColor: sevColors.high, tension:.3},
+      {label:'medium', data: stats.trend.map(r=>r.medium), borderColor: sevColors.medium, tension:.3},
+      {label:'low', data: stats.trend.map(r=>r.low), borderColor: sevColors.low, tension:.3},
+    ]
+  });
+}
+
+function drawChart(canvasId, type, data, extraOpts){
+  const ctx = document.getElementById(canvasId);
+  if (charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(ctx, {
+    type, data,
+    options: Object.assign({
+      plugins: { legend: { labels: { color: '#e7e9ee' } } },
+      scales: type === 'doughnut' ? {} : {
+        x: { ticks:{color:'#9aa3b2'}, grid:{color:'#2a2f3a'} },
+        y: { ticks:{color:'#9aa3b2'}, grid:{color:'#2a2f3a'} },
+      }
+    }, extraOpts || {})
+  });
+}
+
+// ---- events ----
+document.getElementById('langToggle').addEventListener('click', () => {
+  LANG = LANG === 'es' ? 'en' : 'es';
+  localStorage.setItem('secqa_lang', LANG);
+  applyI18n(); refreshAll();
+});
+['runFilter','severityFilter','statusFilter','sourceFilter'].forEach(id =>
+  document.getElementById(id).addEventListener('change', refreshAll));
+document.getElementById('searchBox').addEventListener('input', debounce(refreshAll, 300));
+document.getElementById('btnPrint').addEventListener('click', () => window.print());
+document.getElementById('btnCloseDetail').addEventListener('click', () => document.getElementById('detailDialog').close());
+
+document.getElementById('btnAddFinding').addEventListener('click', () => {
+  document.getElementById('findingForm').reset();
+  document.getElementById('findingDialog').showModal();
+});
+document.getElementById('btnCancel').addEventListener('click', () => document.getElementById('findingDialog').close());
+document.getElementById('findingForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const payload = Object.fromEntries(fd.entries());
+  const runId = document.getElementById('runFilter').value;
+  if (runId) payload.run_id = Number(runId);
+  await api('/api/findings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  document.getElementById('findingDialog').close();
+  await refreshAll();
+});
+
+function debounce(fn, ms){ let t; return (...a) => { clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
+
+(async function init(){
+  fillStaticSelectOptions();
+  applyI18n();
+  await loadRuns();
+  await refreshAll();
+})();
+</script>
+</body>
+</html>
