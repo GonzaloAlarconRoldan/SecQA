@@ -178,7 +178,7 @@ export default function DefectDetailPage() {
               </span>
             )}
           </div>
-          <h1 className="page-title break-words">{d.title}</h1>
+          <h1 className="page-title wrap-break-word">{d.title}</h1>
         </div>
         <div className="flex gap-2">
           <button className="btn" onClick={() => setEditOpen(true)}>

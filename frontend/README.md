@@ -1,6 +1,6 @@
 # SecQA Hub — web UI
 
-React 18 + TypeScript + Vite single-page app for the SecQA Hub. The production build is written to
+React 19 + TypeScript + Vite + Tailwind 4 single-page app for the SecQA Hub. The production build is written to
 `../src/secqa/hub/static/` and served by the FastAPI Hub itself, so end users never need Node.
 
 ## Develop

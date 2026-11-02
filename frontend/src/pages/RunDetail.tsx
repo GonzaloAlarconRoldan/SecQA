@@ -39,7 +39,7 @@ function ResultsTab({ runId }: { runId: number }) {
               <td>
                 <Pill value={r.status} />
               </td>
-              <td className="max-w-[360px] break-words font-mono text-xs">{r.name}</td>
+              <td className="max-w-[360px] wrap-break-word font-mono text-xs">{r.name}</td>
               <td className="font-mono text-xs">
                 {r.test_case_key ? (
                   <Link className="text-indigo-600 hover:underline dark:text-indigo-400" to={withProject("/testcases", project, { q: r.test_case_key })}>

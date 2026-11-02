@@ -1,6 +1,115 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: Inter, -apple-system, Segoe UI, Roboto, sans-serif;
+  --font-mono: JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* v3 line heights were absolute; v4's unitless ones re-scale inside smaller text (pills, badges) */
+  --text-xs--line-height: 1rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl--line-height: 2.25rem;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility card {
+  @apply rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900;
+}
+
+@utility card-h {
+  @apply flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5 text-sm font-semibold dark:border-slate-800;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700;
+}
+
+@utility btn-primary {
+  @apply border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-500 dark:border-indigo-500 dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-500;
+}
+
+@utility btn-danger {
+  @apply border-red-600 bg-red-600 text-white hover:bg-red-500 dark:border-red-600 dark:bg-red-600 dark:hover:bg-red-500;
+}
+
+@utility btn-ghost {
+  @apply border-transparent bg-transparent shadow-none hover:bg-slate-100 dark:bg-transparent dark:hover:bg-slate-800;
+}
+
+@utility btn-sm {
+  @apply px-2 py-1 text-xs;
+}
+
+@utility input {
+  @apply block w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+}
+
+@utility label {
+  @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400;
+}
+
+@utility tbl {
+  @apply w-full border-collapse text-sm;
+  & th {
+    @apply whitespace-nowrap border-b border-slate-200 bg-slate-50 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400;
+  }
+  & td {
+    @apply border-b border-slate-100 px-3 py-2 align-middle dark:border-slate-800/70;
+  }
+  & tbody tr {
+    @apply transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40;
+  }
+}
+
+@utility num {
+  @apply text-right tabular-nums;
+}
+
+@utility muted {
+  @apply text-slate-500 dark:text-slate-400;
+}
+
+@utility pill {
+  @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide;
+}
+
+@utility code {
+  @apply rounded-sm bg-slate-100 px-1 py-0.5 font-mono text-[12px] text-slate-700 dark:bg-slate-800 dark:text-slate-300;
+}
+
+@utility pre {
+  @apply max-h-96 overflow-auto whitespace-pre-wrap wrap-break-word rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-xs text-slate-800 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200;
+}
+
+@utility skeleton {
+  @apply animate-pulse rounded-sm bg-slate-200 dark:bg-slate-800;
+}
+
+@utility page-title {
+  @apply text-xl font-semibold tracking-tight;
+}
 
 @layer base {
   html { color-scheme: light; }
@@ -9,28 +118,5 @@
     @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
     font-feature-settings: "cv11", "ss01";
   }
-  :focus-visible { @apply outline-none ring-2 ring-indigo-500 ring-offset-1 ring-offset-white dark:ring-offset-slate-900; }
-}
-
-@layer components {
-  .card { @apply rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900; }
-  .card-h { @apply flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5 text-sm font-semibold dark:border-slate-800; }
-  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700; }
-  .btn-primary { @apply border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-500 dark:border-indigo-500 dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-500; }
-  .btn-danger { @apply border-red-600 bg-red-600 text-white hover:bg-red-500 dark:border-red-600 dark:bg-red-600 dark:hover:bg-red-500; }
-  .btn-ghost { @apply border-transparent bg-transparent shadow-none hover:bg-slate-100 dark:bg-transparent dark:hover:bg-slate-800; }
-  .btn-sm { @apply px-2 py-1 text-xs; }
-  .input { @apply block w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100; }
-  .label { @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400; }
-  .tbl { @apply w-full border-collapse text-sm; }
-  .tbl th { @apply whitespace-nowrap border-b border-slate-200 bg-slate-50 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400; }
-  .tbl td { @apply border-b border-slate-100 px-3 py-2 align-middle dark:border-slate-800/70; }
-  .tbl tbody tr { @apply transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40; }
-  .num { @apply text-right tabular-nums; }
-  .muted { @apply text-slate-500 dark:text-slate-400; }
-  .pill { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide; }
-  .code { @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-[12px] text-slate-700 dark:bg-slate-800 dark:text-slate-300; }
-  .pre { @apply max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-xs text-slate-800 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200; }
-  .skeleton { @apply animate-pulse rounded bg-slate-200 dark:bg-slate-800; }
-  .page-title { @apply text-xl font-semibold tracking-tight; }
+  :focus-visible { @apply outline-hidden ring-2 ring-indigo-500 ring-offset-1 ring-offset-white dark:ring-offset-slate-900; }
 }

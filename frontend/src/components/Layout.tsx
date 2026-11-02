@@ -174,7 +174,7 @@ export function Layout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/90">
           <nav className="flex gap-1 overflow-x-auto md:hidden" aria-label="Mobile">
             {NAV.flatMap((g) => g.items).map((item) => (
               <NavLink
