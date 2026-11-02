@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, Download, ExternalLink, FileText, ImageOff, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
-import { useAttachmentBlob, useDeleteAttachment } from "../api/hooks";
+import { useAttachmentBlob, useDeleteAttachment, useFetchAttachmentBlob } from "../api/hooks";
 import type { Attachment, AttachmentUpload } from "../api/types";
 import { fmtBytes, fmtRelative } from "../lib/format";
 import { usePrefs } from "../lib/prefs";
@@ -15,6 +15,8 @@ function useObjectUrl(blob: Blob | undefined): string | null {
   useEffect(() => {
     if (!blob) return;
     const u = URL.createObjectURL(blob);
+    // syncing with the browser's object-URL registry: the URL only exists once created here
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUrl(u);
     return () => {
       URL.revokeObjectURL(u);
@@ -54,7 +56,7 @@ function Meta({ a }: { a: Attachment }) {
   const { t, lang } = usePrefs();
   return (
     <div className="muted flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
-      <span className="rounded bg-slate-100 px-1.5 py-px font-medium uppercase tracking-wide dark:bg-slate-800">
+      <span className="rounded-sm bg-slate-100 px-1.5 py-px font-medium uppercase tracking-wide dark:bg-slate-800">
         {t(`ev.kind.${a.kind}` as "ev.kind.file")}
       </span>
       {a.finding_id !== null && a.defect_id === null && <span>{t("ev.fromFinding").replace("{n}", String(a.finding_id))}</span>}
@@ -89,7 +91,7 @@ function Lightbox({ items, index, onIndex, onClose }: {
   if (!a) return null;
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col bg-slate-950/90 backdrop-blur-sm"
+      className="fixed inset-0 z-60 flex flex-col bg-slate-950/90 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
       aria-label={a.caption ?? a.filename}
@@ -135,9 +137,9 @@ function Lightbox({ items, index, onIndex, onClose }: {
         )}
         <div onMouseDown={(e) => e.stopPropagation()} className="flex max-h-full max-w-full items-center justify-center">
           {url ? (
-            <img src={url} alt={a.caption ?? a.filename} className="max-h-[calc(100vh-7rem)] max-w-full rounded shadow-2xl" />
+            <img src={url} alt={a.caption ?? a.filename} className="max-h-[calc(100vh-7rem)] max-w-full rounded-sm shadow-2xl" />
           ) : (
-            <Skeleton className="h-96 w-[48rem] max-w-full" />
+            <Skeleton className="h-96 w-3xl max-w-full" />
           )}
         </div>
         {items.length > 1 && (
@@ -157,14 +159,10 @@ function Lightbox({ items, index, onIndex, onClose }: {
 
 function FileRow({ a, onDelete }: { a: Attachment; onDelete: () => void }) {
   const { t } = usePrefs();
-  const [want, setWant] = useState(false);
-  const { data } = useAttachmentBlob(a, want);
-  useEffect(() => {
-    if (want && data) {
-      saveBlob(data, a.filename);
-      setWant(false);
-    }
-  }, [want, data, a.filename]);
+  const toast = useToast();
+  const fetchBlob = useFetchAttachmentBlob();
+  const download = () =>
+    fetchBlob(a).then((blob) => saveBlob(blob, a.filename), toast.error);
   return (
     <li className="flex items-center gap-2 rounded-md border border-slate-200 px-2.5 py-2 text-sm dark:border-slate-800">
       <FileText className="muted h-4 w-4 shrink-0" />
@@ -173,7 +171,7 @@ function FileRow({ a, onDelete }: { a: Attachment; onDelete: () => void }) {
         <Meta a={a} />
       </div>
       <span className="muted shrink-0 text-xs">{fmtBytes(a.size)}</span>
-      <button className="btn btn-ghost btn-sm" aria-label={`${t("ev.download")} ${a.filename}`} onClick={() => setWant(true)}>
+      <button className="btn btn-ghost btn-sm" aria-label={`${t("ev.download")} ${a.filename}`} onClick={download}>
         <Download className="h-3.5 w-3.5" />
       </button>
       <button
@@ -276,7 +274,7 @@ export function EvidenceGallery({ items, loading, onUpload, uploading, compact }
                 </button>
                 <button
                   type="button"
-                  className="absolute right-1.5 top-1.5 rounded bg-slate-900/70 p-1 text-white opacity-0 transition hover:bg-red-600 focus:opacity-100 group-hover:opacity-100"
+                  className="absolute right-1.5 top-1.5 rounded-sm bg-slate-900/70 p-1 text-white opacity-0 transition hover:bg-red-600 focus:opacity-100 group-hover:opacity-100"
                   aria-label={`${t("c.delete")} ${a.filename}`}
                   onClick={() => (window.confirm(t("ev.deleteConfirm")) ? remove(a) : undefined)}
                 >
@@ -313,7 +311,7 @@ export function EvidenceGallery({ items, loading, onUpload, uploading, compact }
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
           className={cx(
-            "rounded-md border border-dashed p-3 text-sm outline-none transition focus:border-indigo-400",
+            "rounded-md border border-dashed p-3 text-sm outline-hidden transition focus:border-indigo-400",
             dragOver ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30" : "border-slate-300 dark:border-slate-700",
           )}
         >

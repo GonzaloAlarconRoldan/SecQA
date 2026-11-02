@@ -90,7 +90,7 @@ function FindingDrawer({ finding, onClose }: { finding: Finding | null; onClose:
   const row = (label: string, value: ReactNode) => (
     <div className="grid grid-cols-[140px_1fr] gap-2 py-1.5 text-sm">
       <dt className="muted">{label}</dt>
-      <dd className="min-w-0 break-words">{value ?? "—"}</dd>
+      <dd className="min-w-0 wrap-break-word">{value ?? "—"}</dd>
     </div>
   );
 
@@ -105,7 +105,7 @@ function FindingDrawer({ finding, onClose }: { finding: Finding | null; onClose:
             <Pill value={finding.triage_status} />
             <span className="muted font-mono text-xs">#{finding.id}</span>
           </div>
-          <div className="break-words text-base">{finding.title}</div>
+          <div className="wrap-break-word text-base">{finding.title}</div>
         </div>
       }
       footer={
@@ -311,7 +311,7 @@ export function FindingsExplorer({ runId, initial }: { runId?: number; initial?:
       </div>
 
       {selected.size > 0 && (
-        <div className="sticky top-16 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm shadow-sm dark:border-indigo-500/30 dark:bg-indigo-950">
+        <div className="sticky top-16 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm shadow-xs dark:border-indigo-500/30 dark:bg-indigo-950">
           <b className="tabular-nums">{selected.size}</b> {t("c.selected")}
           <div className="ml-auto flex flex-wrap gap-2">
             <button className="btn btn-sm" disabled={bulk.isPending} onClick={() => bulkTriage("confirmed")}>

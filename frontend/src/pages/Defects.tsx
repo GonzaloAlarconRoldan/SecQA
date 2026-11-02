@@ -192,7 +192,7 @@ function Board({ defects }: { defects: Defect[] }) {
                     e.dataTransfer.setData("text/plain", String(d.id));
                     e.dataTransfer.effectAllowed = "move";
                   }}
-                  className="card block cursor-grab border-l-4 p-2.5 text-sm shadow-sm hover:shadow-md active:cursor-grabbing"
+                  className="card block cursor-grab border-l-4 p-2.5 text-sm shadow-xs hover:shadow-md active:cursor-grabbing"
                   style={{ borderLeftColor: SEVERITY_HEX[d.severity] }}
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
@@ -206,7 +206,7 @@ function Board({ defects }: { defects: Defect[] }) {
                   </div>
                 </Link>
               ))}
-              {items.length === 0 && <div className="muted rounded border border-dashed border-slate-300 p-4 text-center text-xs dark:border-slate-700">{t("df.dropHere")}</div>}
+              {items.length === 0 && <div className="muted rounded-sm border border-dashed border-slate-300 p-4 text-center text-xs dark:border-slate-700">{t("df.dropHere")}</div>}
             </div>
           </div>
         );

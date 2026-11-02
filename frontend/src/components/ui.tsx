@@ -89,7 +89,7 @@ export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: nu
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex gap-3">
           {Array.from({ length: cols }, (_, j) => (
-            <Skeleton key={j} className={cx("h-4", j === 1 ? "flex-[3]" : "flex-1")} />
+            <Skeleton key={j} className={cx("h-4", j === 1 ? "flex-3" : "flex-1")} />
           ))}
         </div>
       ))}
@@ -122,7 +122,7 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
   }, [open]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-4 pt-[10vh] backdrop-blur-sm" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-4 pt-[10vh] backdrop-blur-xs" onMouseDown={onClose}>
       <div
         ref={ref}
         role="dialog"
@@ -339,7 +339,7 @@ function inlineMd(chunk: string, keyBase: string): ReactNode[] {
   return chunk.split(/(`[^`\n]+`|\*\*[^*]+\*\*)/g).map((part, i) => {
     const key = `${keyBase}-${i}`;
     if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
-      return <code key={key} className="rounded bg-slate-100 px-1 font-mono text-[0.85em] dark:bg-slate-800">{part.slice(1, -1)}</code>;
+      return <code key={key} className="rounded-sm bg-slate-100 px-1 font-mono text-[0.85em] dark:bg-slate-800">{part.slice(1, -1)}</code>;
     }
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return <strong key={key}>{part.slice(2, -2)}</strong>;
@@ -359,7 +359,7 @@ export function MiniMarkdown({ text }: { text: string }) {
     last = m.index + m[0].length;
   }
   nodes.push(...inlineMd(text.slice(last).replace(/^\n+/, ""), `t${last}`));
-  return <div className="whitespace-pre-wrap break-words text-sm">{nodes}</div>;
+  return <div className="whitespace-pre-wrap wrap-break-word text-sm">{nodes}</div>;
 }
 
 export function PlainText({ text, mono }: { text: string | null | undefined; mono?: boolean }) {

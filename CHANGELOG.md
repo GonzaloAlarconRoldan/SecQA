@@ -43,6 +43,7 @@ All notable changes to this project are documented here. Format based on [Keep a
 - Agent skills now write only through the `secqa` CLI (validated) instead of inline SQL; moved to `agent-kit/skills/`.
 - Findings use a triage workflow (`new`, `confirmed`, `false_positive`, `accepted_risk`, `duplicate`) instead of `pending/approved/rejected`.
 - Mapping file moved to `src/secqa/data/iso_owasp_map.json`.
+- Hub UI on React 19, Recharts 3, Vite 8, Tailwind CSS 4, TypeScript 6 and ESLint 10 (`npm audit`: 0 vulnerabilities); Docker UI build on Node 26; GitHub Actions bumped to their current majors.
 
 ### Removed
 - Stdlib review server, `findings.db` schema/init script, standalone report generator and `install.sh` (replaced by the Hub and `secqa init`).

@@ -74,7 +74,7 @@ export function ReportIcons({ reports }: { reports: ToolReport[] | undefined }) 
         <ReportLink
           key={r.id}
           report={r}
-          className={cx("inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] font-medium hover:underline", toolMeta(r.tool).cls)}
+          className={cx("inline-flex items-center gap-0.5 rounded-sm px-1 py-0.5 text-[11px] font-medium hover:underline", toolMeta(r.tool).cls)}
           title={`${t("tr.open")}: ${toolMeta(r.tool).label}${r.title ? ` — ${r.title}` : ""}`}
         >
           {toolMeta(r.tool).label}

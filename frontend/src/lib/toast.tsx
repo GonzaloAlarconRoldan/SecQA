@@ -40,7 +40,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-80 flex-col gap-2" aria-live="polite">
+      <div className="pointer-events-none fixed bottom-4 right-4 z-60 flex w-80 flex-col gap-2" aria-live="polite">
         {toasts.map((t) => (
           <div
             key={t.id}
@@ -52,7 +52,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             ) : (
               <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
             )}
-            <span className="flex-1 break-words">{t.message}</span>
+            <span className="flex-1 wrap-break-word">{t.message}</span>
             <button className="muted hover:text-slate-900 dark:hover:text-white" onClick={() => dismiss(t.id)} aria-label="Dismiss">
               <X className="h-3.5 w-3.5" />
             </button>

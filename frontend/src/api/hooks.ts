@@ -239,18 +239,25 @@ export function useDeleteAttachment() {
 }
 
 /** Attachments need the auth header, so images are fetched as blobs and shown via object URLs. */
-export function useAttachmentBlob(a: Attachment | null, enabled = true) {
-  return useQuery({
-    queryKey: ["attachment-blob", a?.id],
-    queryFn: async () => {
-      const res = await fetch(a!.url, { headers: authHeaders() });
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      return res.blob();
-    },
-    enabled: !!a && enabled,
-    staleTime: Infinity,
-    gcTime: 5 * 60_000,
-  });
+const attachmentBlobQuery = (a: Attachment | null) => ({
+  queryKey: ["attachment-blob", a?.id],
+  queryFn: async () => {
+    const res = await fetch(a!.url, { headers: authHeaders() });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return res.blob();
+  },
+  staleTime: Infinity,
+  gcTime: 5 * 60_000,
+});
+
+export function useAttachmentBlob(a: Attachment | null) {
+  return useQuery({ ...attachmentBlobQuery(a), enabled: !!a });
+}
+
+/** Fetch an attachment on demand (e.g. a download button) through the same cache as useAttachmentBlob. */
+export function useFetchAttachmentBlob() {
+  const qc = useQueryClient();
+  return (a: Attachment) => qc.fetchQuery(attachmentBlobQuery(a));
 }
 
 export function useSaveTestCase() {
